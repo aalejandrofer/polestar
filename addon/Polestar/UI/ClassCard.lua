@@ -403,7 +403,6 @@ local function build()
 	F.Kind = F:CreateTexture(nil, "ARTWORK", nil, 2)
 	F.Kind:Hide()
 	-- ... whose explainer is its tooltip.
-	F:EnableMouse(true)
 	F:SetScript("OnEnter", function(self)
 		if not self.psDense then return end
 		local G = GF()
@@ -525,6 +524,9 @@ function CC.Fill(guide, index, view)
 	local G = GF()
 	local dense = G and G.stepList and G.stepList.card and true or false
 	F.psDense = dense
+	-- The mouse only for the dense row's tooltip: in the other looks a drag on
+	-- the card reaches the window.
+	F:EnableMouse(dense)
 	if dense then
 		F.Head:SetText(level and format(L["%s · Lv %d"], className, level) or className)
 	else
