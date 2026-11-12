@@ -398,8 +398,6 @@ L["Skipped %s"] = "%s übersprungen"
 L["Step %d"] = "Schritt %d"
 L["You skipped this step."] = "Du hast diesen Schritt übersprungen."
 L["Unskip it"] = "Wieder aufnehmen"
-L["Looking ahead. The guide is at step %d."] = "Vorschau. Der Guide steht bei Schritt %d."
-L["Looking back. The guide is at step %d."] = "Rückblick. Der Guide steht bei Schritt %d."
 L["Back to step %d"] = "Zurück zu Schritt %d"
 L["You have outlevelled this guide."] = "Du bist für diesen Guide überlevelt."
 L["Choose where to level next"] = "Wähle, wo du weiterlevelst"
@@ -429,6 +427,7 @@ L["Up next \194\183 %d steps"] = "Als Nächstes · %d Schritte"
 L["Then:"] = "Danach:"
 L["Person %d of %d"] = "Person %d von %d"
 L["Choose guide"] = "Guide wählen"
+L["Close guide"] = "Guide schließen"
 L["Open in new tab"] = "In neuem Tab öffnen"
 L["Skip this step"] = "Diesen Schritt überspringen"
 L["Report a problem"] = "Problem melden"
@@ -591,6 +590,9 @@ L["Keep these, a later guide hands them in: %s"] = "Behalte diese Quests, ein sp
 L["Press %s, or right-click the minimap button and pick Guide window, to show it."] = "Drücke %s oder wähle im Rechtsklick-Menü des Minikarten-Buttons „Guide-Fenster“, um das Fenster anzuzeigen."
 L["Right-click the minimap button and pick Guide window to show it."] = "Wähle im Rechtsklick-Menü des Minikarten-Buttons „Guide-Fenster“, um das Fenster anzuzeigen."
 L["Clears your manual check-offs and skipped steps in this guide from your last quest progress on. The guide stays where your quests put you."] = "Löscht deine manuell abgehakten Ziele und übersprungenen Schritte in diesem Guide ab deinem letzten Questfortschritt. Der Guide bleibt dort, wo deine Quests dich hingebracht haben."
+-- L["Looking ahead."] = ""
+-- L["Looking back."] = ""
+-- L["Go back to step %d"] = ""
 
 -- UI/Lookup.lua
 L["Both factions"] = "Beide Fraktionen"
@@ -3310,6 +3312,14 @@ L["Old rank cards are off. Turn them back on under Options > Quality of Life > V
 -- UI/GearPick.lua
 L["at turn-in"] = "bei der Abgabe"
 
+-- Theme/SkinApi.lua
+-- L["The skin %s stopped with an error and is off until you reload: %s"] = ""
+-- L["Skin: %s. Skins: %s"] = ""
+-- L["No skin called %s. Skins: %s"] = ""
+-- L["%s has no variant called %s. Its variants: %s"] = ""
+-- L["Skin set to %s."] = ""
+-- L["Choose a skin and its variant (/polestar skin atlas j2)"] = ""
+
 -- No longer in the code (its English changed or it went away): reuse or delete.
 -- L["The arrow's target and the areas it spawns in."] = "Das Ziel des Pfeils und die Gebiete, in denen es spawnt."
 -- L["The arrow's target, the stops of its travel route, the step's other goals and the areas their mobs and objects spawn in."] = "Das Ziel des Pfeils, die Stationen seiner Reiseroute, die anderen Ziele des Schritts und die Gebiete, in denen ihre Mobs und Objekte spawnen."
@@ -3482,3 +3492,5 @@ L["at turn-in"] = "bei der Abgabe"
 -- L["Train All"] = "Alles lernen"
 -- L["Train all button"] = "Button „Alles lernen“"
 -- L["A level-up card lists what to train; %s learns it (thanks RikyZ90); %s updates your bars."] = "Beim Stufenaufstieg zeigt eine Karte neue Zauber; %s lernt alle (danke RikyZ90); %s setzt neue Ränge in die Leisten."
+-- L["Looking ahead. The guide is at step %d."] = "Vorschau. Der Guide steht bei Schritt %d."
+-- L["Looking back. The guide is at step %d."] = "Rückblick. Der Guide steht bei Schritt %d."

@@ -125,12 +125,16 @@ class TextureCache {
 function measure(fonts, font, text) {
 	const f = fonts[font[0]];
 	let w = 0;
-	for (const ch of text) w += f.advanceEm(ch.codePointAt(0));
+	for (const ch of text) w += ch === ICON ? 1 : f.advanceEm(ch.codePointAt(0));
 	return w * font[1];
 }
 
+// An inline texture (|Tpath:h:w...|t) is one character, one em wide: the
+// client draws it at the text's height.
+const ICON = '\ue000';
+const TEXTURE_ESCAPE = /\|T([^|]*)\|t/g;
 function plain(s) {
-	return String(s ?? '').replace(/\|\|/g, '\u0001').replace(/\|c[0-9a-fA-F]{8}/g, '').replace(/\|r/g, '').replace(/\u0001/g, '|');
+	return String(s ?? '').replace(/\|\|/g, '\u0001').replace(TEXTURE_ESCAPE, ICON).replace(/\|c[0-9a-fA-F]{8}/g, '').replace(/\|r/g, '').replace(/\u0001/g, '|');
 }
 
 // Greedy wrap, same rule as stub.lua: at spaces, and between any two CJK
@@ -278,7 +282,14 @@ function runs(line, base) {
 	let buf = '';
 	const s = line.replace(/\|\|/g, '\u0001');
 	for (let i = 0; i < s.length; ) {
-		if (s[i] === '|' && s[i + 1] === 'c' && /^[0-9a-fA-F]{8}$/.test(s.slice(i + 2, i + 10))) {
+		if (s[i] === '|' && s[i + 1] === 'T' && s.indexOf('|t', i + 2) > 0) {
+			// An inline texture: a run of its own, the path before the first ':'.
+			const end = s.indexOf('|t', i + 2);
+			if (buf) out.push({ text: buf, color });
+			buf = '';
+			out.push({ text: ICON, color, icon: s.slice(i + 2, end).split(':')[0] });
+			i = end + 2;
+		} else if (s[i] === '|' && s[i + 1] === 'c' && /^[0-9a-fA-F]{8}$/.test(s.slice(i + 2, i + 10))) {
 			if (buf) out.push({ text: buf, color });
 			buf = '';
 			stack.push(color);
@@ -304,7 +315,7 @@ function runs(line, base) {
 function colouredLines(src, lines, base) {
 	const all = runs(String(src ?? '').replace(/\n/g, ' \n '), base);
 	const chars = [];
-	for (const r of all) for (const ch of r.text) chars.push({ ch, color: r.color });
+	for (const r of all) for (const ch of r.text) chars.push({ ch, color: r.color, icon: r.icon });
 	const out = [];
 	let k = 0;
 	for (const line of lines) {
@@ -312,8 +323,10 @@ function colouredLines(src, lines, base) {
 		for (const ch of line) {
 			while (k < chars.length && chars[k].ch !== ch) k++;
 			const c = k < chars.length ? chars[k].color : base;
+			const icon = k < chars.length ? chars[k].icon : undefined;
 			const last = lr[lr.length - 1];
-			if (last && last.color === c) last.text += ch;
+			if (icon) lr.push({ text: ch, color: c, icon });
+			else if (last && last.color === c && !last.icon) last.text += ch;
 			else lr.push({ text: ch, color: c });
 			k++;
 		}
@@ -641,6 +654,16 @@ function svg(dump, { fonts, textures, roots, margin = 28, prefix = 'p', shared, 
 				else if (t.justifyH === 'RIGHT') x = r.x + r.w - lineW;
 				const baseline = y0 + i * (lineH + spacing) + lineH * 0.86;
 				for (const run of lr) {
+					if (run.icon) {
+						// The texture, a square at the text's height, its own colours.
+						const uri = !pass && textures.uri(textureName(run.icon), [1, 1, 1, 1], null, 0);
+						if (uri) {
+							const img = `<image x="${f2(x - ox)}" y="${f2(baseline - oy - size * 0.82)}" width="${f2(size)}" height="${f2(size)}" opacity="${f2(alpha)}" href="${uri}"/>`;
+							body.push(clip ? `<g${clip}>${img}</g>` : img);
+						}
+						x += size;
+						continue;
+					}
 					const c = pass ? pass.color : run.color;
 					const { fill, opacity } = rgba(c, alpha * (pass ? (c[3] ?? 1) * (run.color[3] ?? 1) : 1));
 					if (opacity > 0.001) {

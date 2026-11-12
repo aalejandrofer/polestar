@@ -514,6 +514,8 @@ local P -- the resolved palette; rebuilt on the next read after a change
 -- player's choice restores when a hidden skin returns).
 function Theme.SkinKey()
 	local k = get("ui.skin")
+	-- A skin another addon registered is drawn from its base look (Theme/SkinApi.lua).
+	if ns.SkinApi then k = ns.SkinApi.base(k) or k end
 	return (SKIN_PALETTES[k] and (Theme._testShowHidden or not HIDDEN_SKINS[k])) and k or "polestar"
 end
 
@@ -538,7 +540,7 @@ end
 -- there, so a module may read them in any skin.
 local HOUSE_EXTRA = {
 	textOff = "textMuted", title = "text", link = "npc", todo = "accent", later = "warning", arrive = "success",
-	manual = "item", skipped = "spell", separator = "divider", rowLine = "divider", veil = "bg", veilWindow = "bg",
+	manual = "item", skipped = "spell", separator = "divider", rowLine = "divider", menuLine = "divider", veil = "bg", veilWindow = "bg",
 	menuBg = "panel", control = "panelAlt", icon = "textDim", iconHover = "text", buttonText = "text",
 	personName = "npc", tabRest = "textDim", rowLabel = "text", navRest = "textDim",
 }
@@ -551,6 +553,7 @@ local function resolveSkin(skin)
 	for name, c in pairs(ART) do out[name] = copy(c) end
 	for name, c in pairs(BRAND) do out[name] = copy(c) end
 	for name, c in pairs(SKIN_PALETTES[skin]) do out[name] = copy(c) end
+	for name, c in pairs(ns.SkinApi and ns.SkinApi.tokens() or {}) do out[name] = copy(c) end
 	local r, g, b
 	local own = get("ui.accent")
 	if isColor(own) then
@@ -589,6 +592,13 @@ local function resolve()
 	for name, c in pairs(ART) do out[name] = copy(c) end
 	for name, c in pairs(BRAND) do out[name] = copy(c) end
 	for name, c in pairs(src) do out[name] = copy(c) end
+	-- A registered skin's tokens over the scheme, under the player's own
+	-- colours; its accent stands in for Polestar gold.
+	local stoks = ns.SkinApi and ns.SkinApi.tokens()
+	local skinAccent
+	for name, c in pairs(stoks or {}) do
+		if name == "accent" then skinAccent = c else out[name] = copy(c) end
+	end
 	if key == "ellesmere" then
 		local panel = euiPanel()
 		if panel then
@@ -612,7 +622,10 @@ local function resolve()
 	elseif Theme.FollowsEllesmereAccent() then
 		r, g, b = euiAccent()
 	end
-	if not r then r, g, b = DEFAULT_ACCENT[1], DEFAULT_ACCENT[2], DEFAULT_ACCENT[3] end
+	if not r then
+		local a = skinAccent or DEFAULT_ACCENT
+		r, g, b = a[1], a[2], a[3]
+	end
 	out.accent = { r, g, b, 1 }
 	-- Text on an accent fill: the scheme's dark ink, or the light text when
 	-- the accent is too dark to carry dark text.
@@ -631,7 +644,7 @@ local function resolve()
 	elseif get("ui.borderAccent") then
 		out.windowBorder = { r, g, b, 0.8 }
 	else
-		out.windowBorder = copy(out.border)
+		out.windowBorder = copy(stoks and stoks.windowBorder or out.border)
 	end
 	-- The waypoint arrow, its route stops and the map's target pin: the
 	-- player's own colour > the accent while far; the player's own > success
@@ -1779,6 +1792,7 @@ end
 
 -- Repaint everything we skinned or fonted, then tell the listeners.
 function Theme.Refresh()
+	if ns.SkinApi then ns.SkinApi.switch() end
 	P = nil
 	for sky in pairs(bands) do paintBand(sky) end
 	for frame, kind in pairs(skinned) do paint(frame, kind) end

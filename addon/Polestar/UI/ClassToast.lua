@@ -459,6 +459,8 @@ local function paint(class)
 	f.Close:SetSize(iw, ih)
 	f.Close.Icon:SetSize(ig, ig)
 	W.SetFramed(f.Close, "icon")
+	-- The skin in use's touch (Skin API, hooks.card): the regions in the accent.
+	Theme.SkinHook("card", f, "headsup", { accents = { f.Stripe, f.Ring, f.Head } })
 end
 
 function layout(width)
@@ -576,12 +578,16 @@ function CT.Place(animate)
 	f:SetFrameLevel(w:GetFrameLevel() - 1)
 	layout(w:GetWidth())
 	local h = f:GetHeight()
-	local top, room = w:GetTop(), UIParent:GetTop()
+	-- A frame a skin joined to the window's top (Skin API, hooks.guideAnchor)
+	-- is the edge the card sits on above it.
+	local ran, own = Theme.SkinHookValue("guideAnchor")
+	local edge = ran and type(own) == "table" and own.GetTop and own or w
+	local top, room = edge:GetTop(), UIParent:GetTop()
 	local s, us = w:GetEffectiveScale() or 1, UIParent:GetEffectiveScale() or 1
 	local above = not (top and room) or (top + h) * s <= room * us
 	CT.side = above and "above" or "below"
 	if above then
-		Anim.Anchor(f, "BOTTOMLEFT", w, "TOPLEFT", 0, -1)
+		Anim.Anchor(f, "BOTTOMLEFT", edge, "TOPLEFT", 0, -1)
 	else
 		Anim.Anchor(f, "TOPLEFT", w, "BOTTOMLEFT", 0, 1)
 	end

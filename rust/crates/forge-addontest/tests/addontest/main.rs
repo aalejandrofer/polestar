@@ -332,6 +332,8 @@ mod skins_sweep;
 mod syntax;
 mod talents;
 mod theme;
+#[path = "theme-skin-api.rs"]
+mod theme_skin_api;
 mod travel;
 #[path = "travel-build.rs"]
 mod travel_build;

@@ -30,7 +30,7 @@ function playDataDir() {
 function parse(argv) {
 	const { opts: o, positional, error } = parseArgs(argv, { flags: ['--fresh', '--no-art'], options: ['--port', '--art', ...PACK_OPTIONS] });
 	if (error) throw new Error(error);
-	const opts = { ...o, positional, port: o.port === undefined ? 8077 : Number(o.port), art: o.noArt ? '' : o.art === undefined ? null : o.art, fresh: !!o.fresh, host: '127.0.0.1' };
+	const opts = { ...o, positional, port: o.port === undefined ? 8077 : Number(o.port), art: o.noArt ? '' : o.art === undefined ? null : o.art, fresh: !!o.fresh, host: process.env.POLESTAR_PLAY_HOST || '127.0.0.1' };
 	if (!Number.isInteger(opts.port) || opts.port < 0 || opts.port > 65535) throw new Error('--port needs a port number');
 	if (opts.art === null) opts.art = defaultArt();
 	return opts;
