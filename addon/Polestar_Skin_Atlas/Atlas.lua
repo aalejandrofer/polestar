@@ -590,6 +590,12 @@ local function navFill(frac)
 		own.edge = nav:CreateTexture(nil, "ARTWORK")
 		own.edge:SetTexture(Theme.Media("white"))
 	end
+	-- The bar reads like the header's "1 / 80": the step in view over the
+	-- guide's steps, not Polestar's own done-steps progress.
+	local UI, E = Polestar.UI, Polestar.Engine
+	local at = E and E.GetStepIndex and E.GetStepIndex()
+	local total = UI and UI.StepTotal and UI.StepTotal() or 0
+	if at and total > 0 then frac = (UI.StepNo and UI.StepNo(at) or at) / total end
 	local w = math.max(0.01, (nav:GetWidth() or 0) * math.min(1, math.max(0, frac or 0)))
 	local r, g, b = Theme.Accent()
 	own.fill:ClearAllPoints()
