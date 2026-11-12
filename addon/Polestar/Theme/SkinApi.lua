@@ -24,11 +24,12 @@ Theme.API_VERSION = 2
 -- the guide's progress (guideProgress), the frame the heads-up card sits on
 -- (guideAnchor), a part the skin places itself (guidePlace), a part the
 -- window's mode leaves out that the skin keeps (guideShows: "tip" in compact
--- mode, "done" goals in place of their fold line), the step's header
+-- mode, "done" goals in place of their fold line), a goal the skin shows in a
+-- card of its own (guideTakes), the step's header
 -- (guidePerson), a part set in from the left (guideInset), an Up next row
 -- (guideUpRow) and the class quest heads-up (card).
 local HOOKS = { guideTitle = true, guideRow = true, guideLayout = true, guideRender = true, guideProgress = true,
-	guideAnchor = true, guidePlace = true, guideShows = true, guidePerson = true, guideInset = true, guideUpRow = true,
+	guideAnchor = true, guidePlace = true, guideShows = true, guideTakes = true, guidePerson = true, guideInset = true, guideUpRow = true,
 	card = true }
 
 local SKINS, FAILED, ORDER = {}, {}, {}

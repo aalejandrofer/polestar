@@ -180,6 +180,7 @@ end
 
 -- Lay the parts taken at this layout under each other on the card.
 local TOP_PAD = 2
+local stackOptional -- the Optional and hint card (below), stacked after the taken parts
 local function layoutTop(parts)
 	local window = parts.window
 	if not window then return end
@@ -193,6 +194,7 @@ local function layoutTop(parts)
 		y = y + (f:GetHeight() or 0)
 		taken[i] = nil
 	end
+	y = stackOptional(top, window, y)
 	if y > TOP_PAD then
 		dressTop(top, window)
 		top:SetHeight(y + TOP_PAD)
@@ -290,6 +292,212 @@ end
 
 local function isJ2() return variant() == "j2" end
 local function compact() return Polestar.Get and Polestar.Get("ui.compact") and true or false end
+
+---------------------------------------------------------------------------
+-- J2: the step's optional goals and notes in a card of Atlas's own, on the
+-- top card above the window, not among the goals. guideTakes leaves them out
+-- of the step card; guideRender fills the card from the step (view.goals
+-- still holds them); layoutTop stacks it. A row has its glyph, its line, its
+-- count and Skip (Undo once skipped); the notes are lines in the quest colour.
+---------------------------------------------------------------------------
+local OPT_ROW, OPT_PAD, OPT_LABEL = 18, 10, 14
+local optStep, optGoals, optNotes, optSig = nil, {}, {}, nil
+
+local function takesOut(goal)
+	return isJ2() and (goal.optional or goal.t == "note") and true or false
+end
+
+local function optCard(top)
+	local own = kit.store(top)
+	if own.opt then return own.opt end
+	local L = Polestar.L or {}
+	local c = CreateFrame("Frame", nil, top)
+	c.Label = c:CreateFontString(nil, "OVERLAY")
+	Theme.Font(c.Label, "small")
+	c.Label:SetText(string.upper(L["Optional"] or "Optional"))
+	c.Rows, c.Notes = {}, {}
+	own.opt = c
+	return c
+end
+
+local function optRow(c, i)
+	local r = c.Rows[i]
+	if r then return r end
+	r = CreateFrame("Frame", nil, c)
+	r.Icon = r:CreateTexture(nil, "ARTWORK")
+	r.Icon:SetSize(12, 12)
+	r.Icon:SetPoint("LEFT", r, "LEFT", OPT_PAD, 0)
+	r.Text = r:CreateFontString(nil, "OVERLAY")
+	Theme.Font(r.Text, "label")
+	r.Text:SetJustifyH("LEFT")
+	r.Text:SetWordWrap(false)
+	r.Meta = r:CreateFontString(nil, "OVERLAY")
+	Theme.Font(r.Meta, "small")
+	r.Meta:SetJustifyH("RIGHT")
+	r.Skip = CreateFrame("Button", nil, r)
+	r.Skip.Label = r.Skip:CreateFontString(nil, "OVERLAY")
+	Theme.Font(r.Skip.Label, "small")
+	r.Skip.Label:SetPoint("CENTER", r.Skip, "CENTER", 0, 0)
+	r.Skip:SetScript("OnClick", function()
+		local E = Polestar.Engine
+		local goal = r.psGoal
+		if E and E.SkipGoal and goal and optStep then E.SkipGoal(optStep, goal.index) end
+	end)
+	r.Skip:SetScript("OnEnter", function(b) b.Label:SetTextColor(Theme.Color("text")) end)
+	r.Skip:SetScript("OnLeave", function(b) b.Label:SetTextColor(Theme.Color("textDim")) end)
+	c.Rows[i] = r
+	return r
+end
+
+-- Fill from the step on screen (guideRender); the layout comes with layoutTop.
+local function fillOptional(view, parts)
+	optGoals, optNotes, optStep = {}, {}, view and view.index or nil
+	local sig = {}
+	if view and isJ2() then
+		for _, goal in ipairs(view.goals or {}) do
+			if goal.status ~= "na" and not goal.folded then
+				if goal.t == "note" then
+					optNotes[#optNotes + 1] = goal
+				elseif goal.optional then
+					optGoals[#optGoals + 1] = goal
+				else
+					goal = nil
+				end
+				if goal then sig[#sig + 1] = goal.index .. (goal.status or "") .. (goal.dismissed and "d" or "") end
+			end
+		end
+	end
+	-- The render comes after the layout: lay out again when the card's content changed.
+	local now = (optStep or 0) .. ":" .. table.concat(sig, ",")
+	if now ~= optSig then
+		optSig = now
+		local GF = Polestar.UI and Polestar.UI.GuideFrame
+		if GF and GF.Layout then GF.Layout() end
+	end
+end
+
+stackOptional = function(top, window, y)
+	local c = optCard(top)
+	local UI, E = Polestar.UI, Polestar.Engine
+	local n, m = #optGoals, #optNotes
+	if n + m == 0 or not isJ2() then
+		c:Hide()
+		return y
+	end
+	local width = window:GetWidth() or 0
+	local lh = 4
+	for i = 1, m do
+		local fs = c.Notes[i]
+		if not fs then
+			fs = c:CreateFontString(nil, "OVERLAY")
+			Theme.Font(fs, "label")
+			fs:SetJustifyH("LEFT")
+			fs:SetJustifyV("TOP")
+			fs:SetWordWrap(true)
+			c.Notes[i] = fs
+		end
+		fs:SetTextColor(Theme.Color("quest"))
+		fs:SetText(UI.GoalText(optNotes[i]))
+		fs:SetWidth(math.max(40, width - OPT_PAD * 2))
+		fs:ClearAllPoints()
+		fs:SetPoint("TOPLEFT", c, "TOPLEFT", OPT_PAD, -lh)
+		fs:Show()
+		lh = lh + math.floor(fs:GetStringHeight() + 0.5) + 3
+	end
+	for i = m + 1, #c.Notes do c.Notes[i]:Hide() end
+	c.Label:ClearAllPoints()
+	c.Label:SetPoint("TOPLEFT", c, "TOPLEFT", OPT_PAD, -lh)
+	c.Label:SetTextColor(Theme.Color("textMuted"))
+	c.Label:SetShown(n > 0)
+	if n > 0 then lh = lh + OPT_LABEL end
+	for i = 1, n do
+		local goal = optGoals[i]
+		local r = optRow(c, i)
+		local done, dismissed = goal.status == "done", goal.dismissed
+		r.psGoal = goal
+		r:ClearAllPoints()
+		r:SetPoint("TOPLEFT", c, "TOPLEFT", 0, -lh)
+		r:SetPoint("TOPRIGHT", c, "TOPRIGHT", 0, -lh)
+		r:SetHeight(OPT_ROW)
+		r.Icon:SetTexture(done and Theme.Media("check") or (dismissed and Theme.Media("skip")) or Theme.VerbIcon(goal.t))
+		r.Icon:SetVertexColor(Theme.Color(done and "success" or "textDim"))
+		r.Text:SetText((done or dismissed) and UI.PlainGoalText(goal) or UI.GoalText(goal))
+		r.Text:SetTextColor(Theme.Color((done or dismissed) and "textMuted" or "text"))
+		local count = UI.GoalProgress(goal)
+		r.Meta:SetText(count or "")
+		r.Meta:SetTextColor(Theme.Color("textMuted"))
+		local right = OPT_PAD
+		local L = Polestar.L or {}
+		r.Skip.Label:SetText(dismissed and (L["Undo"] or "Undo") or (L["Skip"] or "Skip"))
+		r.Skip.Label:SetTextColor(Theme.Color("textDim"))
+		local canSkip = not done and E and E.SkipGoal ~= nil
+		r.Skip:SetShown(canSkip and true or false)
+		if canSkip then
+			r.Skip:SetSize(math.floor(r.Skip.Label:GetStringWidth() + 8 + 0.5), 14)
+			r.Skip:ClearAllPoints()
+			r.Skip:SetPoint("RIGHT", r, "RIGHT", -right, 0)
+			right = right + r.Skip:GetWidth() + 6
+		end
+		r.Meta:ClearAllPoints()
+		r.Meta:SetPoint("RIGHT", r, "RIGHT", -right, 0)
+		r.Meta:SetShown(count ~= nil)
+		if count then right = right + math.floor(r.Meta:GetStringWidth() + 0.5) + 6 end
+		r.Text:ClearAllPoints()
+		r.Text:SetPoint("LEFT", r.Icon, "RIGHT", 6, 0)
+		r.Text:SetWidth(math.max(40, width - (OPT_PAD + 12 + 6) - right - 2))
+		r:Show()
+		lh = lh + OPT_ROW
+	end
+	for i = n + 1, #c.Rows do c.Rows[i]:Hide() end
+	lh = lh + 4
+	c:SetHeight(lh)
+	c:ClearAllPoints()
+	c:SetPoint("TOPLEFT", top, "TOPLEFT", 0, -y)
+	c:SetPoint("TOPRIGHT", top, "TOPRIGHT", 0, -y)
+	c:Show()
+	return y + lh
+end
+
+-- The tip of the step being filled (the render's own index) -> its text, or
+-- nil (none, or a picture with it: that tip keeps its strip).
+local function stepNote()
+	local E = Polestar.Engine
+	local GF = Polestar.UI and Polestar.UI.GuideFrame
+	if not (E and E.GetStepView) then return nil end
+	local index = GF and GF.catchUpIndex or (E.GetStepIndex and E.GetStepIndex())
+	local v = type(index) == "number" and E.GetStepView(index)
+	if not v or v.image then return nil end
+	if type(v.note) == "string" and v.note ~= "" then return v.note end
+end
+
+-- J2: the tip on the line under the live goal (after its own sub-line).
+local function tipUnder(row, info)
+	local own = kit.store(row)
+	own.tip = nil
+	if not isJ2() or compact() or not info.current or info.done or info.skipped then return end
+	if not (Polestar.Get and Polestar.Get("ui.showNotes")) then return end
+	local note = stepNote()
+	if not note then return end
+	local sub = row.Sub:IsShown() and row.Sub:GetText() or nil
+	local line = "|c" .. Theme.Hex("textDim") .. note .. "|r"
+	row.Sub:SetText((sub and sub ~= "") and (sub .. "\n" .. line) or line)
+	row.Sub:Show()
+	own.tip = note
+end
+
+-- The tip's own strip goes while a row on screen carries it.
+local function tipTaken(tip)
+	if not isJ2() or compact() then return false end
+	local parts = Theme.GuideParts()
+	local text = tip.Text and tip.Text:GetText()
+	for _, r in ipairs(parts and parts.rows or {}) do
+		if r:IsShown() and text and kit.store(r).tip == text then
+			tip:Hide()
+			return true
+		end
+	end
+	return false
+end
 
 -- The card under the window: the Journey, joined to the window's foot.
 local below = {}
@@ -1423,7 +1631,10 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 			jPerson(parts)
 			-- The render shows Skip again after the layout: J2 keeps it in the menu.
 			if isJ2() and parts.nav then parts.nav.Skip:Hide() end
+			fillOptional(view, parts)
 		end,
+		-- J2: optional goals and notes leave the card for the Optional card above.
+		guideTakes = function(goal) return takesOut(goal) end,
 	},
 	-- Under another skin: While you're here gets its own panel back, the
 	-- accent bars and Up next's rows their alpha, the live goal its font.

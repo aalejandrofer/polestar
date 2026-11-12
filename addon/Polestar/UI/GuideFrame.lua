@@ -3195,7 +3195,11 @@ local function shownGoals(v, group)
 	local list, others = {}, 0
 	for _, gi in ipairs(group.goals or {}) do
 		local goal = v.goals[gi]
-		if goal and goal.status ~= "na" and not goal.folded then
+		-- A goal the skin in use shows in a card of its own (hooks.guideTakes):
+		-- the card leaves its row out, the step view still has it.
+		local ran, taken = false, nil
+		if goal then ran, taken = Theme.SkinHookValue("guideTakes", goal) end
+		if goal and goal.status ~= "na" and not goal.folded and not (ran and taken == true) then
 			list[#list + 1] = UI.ReadingGoal(v, goal)
 			if not goal.header then others = others + 1 end
 		end
