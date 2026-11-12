@@ -264,7 +264,7 @@ fn a_skin_places_the_class_card_and_keeps_it_to_the_chain_s_first_step() {
 #[test]
 fn atlas_j2_puts_the_class_card_above_the_window_and_its_x_puts_it_away() {
 	let out = run_in(r#"
-		Polestar.RunCommand("skin atlas j2")
+		Polestar.RunCommand("skin atlas atlas")
 		-- Step 1 opens the chain: Atlas shows the card there only.
 		E.Goto(1); flush()
 		GF.Render(); flush()

@@ -270,7 +270,7 @@ fn a_skin_s_tokens_and_variants_colour_the_window_bad_specs_are_refused_and_a_ra
 	assert_eq!(lines.iter().filter(|l| l.as_str().unwrap_or("").contains("Tint stopped with an error")).count(), 1, "said once: {lines:?}");
 }
 
-// /polestar skin atlas j2: the Atlas addon (loaded on demand, as a player has it) is picked with its J2 variant and
+// /polestar skin atlas atlas: the Atlas addon (loaded on demand, as a player has it) is picked with its J2 variant and
 // the variant's preset is set once: no tabs, no foot bar, the Journey collapsed. The window has one bar that fills
 // as the guide's progress (no band or title bar), the live goal is bold with its gold count, and compact mode
 // (J2c) keeps the tip. A wrong variant is said in chat and changes nothing; /polestar skin polestar takes the
@@ -285,7 +285,7 @@ fn the_skin_command_picks_atlas_j2_sets_its_preset_once_and_compact_mode_keeps_t
 		local said = #stub.messages
 		Polestar.RunCommand("skin atlas nope")
 		local wrong = { skin = Polestar.Get("ui.skin"), line = stub.messages[#stub.messages] }
-		Polestar.RunCommand("skin atlas j2")
+		Polestar.RunCommand("skin atlas atlas")
 		local line = stub.messages[#stub.messages]
 		GF.Render()
 		local function shown(f) return f and f:IsShown() and true or false end
@@ -310,15 +310,15 @@ fn the_skin_command_picks_atlas_j2_sets_its_preset_once_and_compact_mode_keeps_t
 	);
 	assert_eq!(out["wrong"]["skin"], "polestar", "a wrong variant changes nothing");
 	assert!(out["wrong"]["line"].as_str().unwrap_or("").contains("no variant called nope"), "{}", out["wrong"]["line"]);
-	assert!(out["line"].as_str().unwrap_or("").contains("Skin set to atlas j2."), "{}", out["line"]);
+	assert!(out["line"].as_str().unwrap_or("").contains("Skin set to atlas atlas."), "{}", out["line"]);
 	assert_eq!(
 		out["j2"],
-		json!({ "skin": "atlas", "key": "polestar", "variant": "j2", "tabs": false, "progress": false, "journey": false,
+		json!({ "skin": "atlas", "key": "polestar", "variant": "atlas", "tabs": false, "progress": false, "journey": false,
 			"strip": false, "foot": false, "band": false, "rule": false, "accent": "e6ba66" }),
 		"J2: one bar, no tabs, no foot bar, the Journey collapsed, its gold"
 	);
 	assert_eq!(out["keeps"], true, "the preset is set once, not held");
-	assert_eq!(out["compact"], json!({ "tip": true, "variant": "j2" }), "J2c keeps the tip in compact mode");
+	assert_eq!(out["compact"], json!({ "tip": true, "variant": "atlas" }), "J2c keeps the tip in compact mode");
 	assert_eq!(out["back"], json!({ "skin": "polestar", "band": true, "rule": true }), "Polestar's own look back");
 }
 
@@ -330,7 +330,7 @@ fn atlas_keeps_the_menu_s_group_lines_and_j2_shows_up_next_rows_folded_or_not() 
 	let out = run_with(
 		r##"
 		uistub.openTabs(TABS, 1)
-		Polestar.RunCommand("skin atlas j2")
+		Polestar.RunCommand("skin atlas atlas")
 		Polestar.Set("ui.upcoming", 3)
 		Polestar.Set("ui.upcomingOpen", false)
 		GF.Render()

@@ -462,5 +462,5 @@ local function skinCommand(rest)
 end
 
 if ns.RegisterCommand then
-	ns.RegisterCommand("skin", skinCommand, L["Choose a skin and its variant (/polestar skin atlas j2)"])
+	ns.RegisterCommand("skin", skinCommand, L["Choose a skin and its variant (/polestar skin atlas atlas)"])
 end

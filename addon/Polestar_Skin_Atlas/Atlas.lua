@@ -216,53 +216,15 @@ local function takeHere(frame, top)
 	return body
 end
 
--- The variant in use ("calm" before the player picks one).
+-- The variant in use ("atlas" before the player picks one).
 local function variant()
-	return Theme.SkinVariant and Theme.SkinVariant("atlas") or "calm"
-end
-
--- Ledger: what a goal row would tell in a second column, on its right:
--- the quest's level on an accept or a hand-in, the distance on the arrow's
--- row. The row's count stays in its line (Polestar writes it there).
-local DIST = { round = 5 }
-local function ledgerRow(row, goal, info)
-	local own = kit.store(row)
-	if not own.meta then
-		own.meta = row:CreateFontString(nil, "OVERLAY")
-		Theme.Font(own.meta, "small")
-		own.meta:SetJustifyH("RIGHT")
-	end
-	local meta = own.meta
-	if variant() ~= "ledger" or info.done or info.skipped then
-		meta:Hide()
-		return
-	end
-	local text
-	if info.current then
-		local N = Polestar.Nav
-		local d = N and N.GetDistance and N.GetDistance()
-		if type(d) == "number" then text = Polestar.FormatDistance(d, DIST) end
-	end
-	if not text and (goal.t == "accept" or goal.t == "turnin") and goal.quest then
-		local Lv, E = Polestar.Levels, Polestar.Engine
-		local lvl = Lv and Lv.QuestLevel and Lv.QuestLevel(goal.quest, E and E.GetGuide and E.GetGuide() or nil)
-		if type(lvl) == "number" and lvl > 0 then text = "[" .. lvl .. "]" end
-	end
-	if not text then
-		meta:Hide()
-		return
-	end
-	meta:ClearAllPoints()
-	meta:SetPoint("TOPRIGHT", row, "TOPRIGHT", -34, -6)
-	meta:SetText(text)
-	meta:SetTextColor(Theme.Color(info.current and "textDim" or "textMuted"))
-	meta:Show()
+	return Theme.SkinVariant and Theme.SkinVariant("atlas") or "atlas"
 end
 
 -- The variants that keep their own accent, not the softened class colour.
-local OWN_ACCENT = { tooltip = true, brass = true, j = true, j2 = true }
--- The variants whose class card takes that accent (J keeps the class colour there).
-local CARD_ACCENT = { tooltip = true, brass = true }
+local OWN_ACCENT = { brass = true, atlas = true }
+-- The variants whose class card takes that accent (Atlas keeps the class colour there).
+local CARD_ACCENT = { brass = true }
 
 ---------------------------------------------------------------------------
 -- J: the saved layout (data/local mockups, guide-layouts preset J). One bar
@@ -275,7 +237,7 @@ local CARD_ACCENT = { tooltip = true, brass = true }
 
 local function isJ()
 	local v = variant()
-	return v == "j" or v == "j2"
+	return v == "atlas"
 end
 
 ---------------------------------------------------------------------------
@@ -290,7 +252,7 @@ end
 -- card's foot.
 ---------------------------------------------------------------------------
 
-local function isJ2() return variant() == "j2" end
+local function isJ2() return isJ() end
 local function compact() return Polestar.Get and Polestar.Get("ui.compact") and true or false end
 
 ---------------------------------------------------------------------------
@@ -1458,28 +1420,17 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 		menuLine = "#ffffff1f",
 	},
 	variants = {
-		{ id = "calm", name = "Calm", desc = "One surface in your scheme, your class colour softened." },
-		{ id = "ledger", name = "Ledger", desc = "Calm, with the quest's level and the distance on each goal's row." },
-		{ id = "tooltip", name = "Tooltip", desc = "Near-black, a blue-grey edge and a gold title, as the game's tooltips.",
-			tokens = {
-				bg = "#07090f", panel = "#0b0e17", panelAlt = "#131826", sky = "#07090f", star = "#ffffff00",
-				windowBorder = "#5b6a8c", accent = "#8fa3c8", title = "#e6c36a", personName = "#e6c36a",
-				text = "#eef0f6", textDim = "#b9bfcc", textMuted = "#8e95a6",
-			} },
+		{ id = "atlas", name = "Atlas", desc = "One bar that fills as you go, with the steps on a rail: the last step faded above the title, done goals kept in place, the counts in a column, the tip as a strip at the card's foot and Up next on the rail. The Journey is a card below the window, collapsed. Training and the class quest come up as cards above the window. Compact mode keeps the tip strip.",
+			tokens = { accent = "#e6ba66" },
+			preset = { ["guideWindow.tabs"] = false, ["guideWindow.progress"] = false, ["nav.journeyOpen"] = false, ["ui.upcoming"] = 3, ["ui.upcomingOpen"] = true } },
 		{ id = "brass", name = "Muted brass", desc = "Warm dark ground, a bronze edge, brass on the bar and the progress.",
 			tokens = {
 				bg = "#17110c", panel = "#1d160f", panelAlt = "#261d13", sky = "#17110c", star = "#ffffff00",
 				windowBorder = "#5e4a2c", accent = "#b99a58", quest = "#c9ad6e", npc = "#a9c6de",
 				text = "#f3ead8", textDim = "#cbbd9f", textMuted = "#a39578",
 			} },
-		{ id = "j", name = "J: one bar", desc = "One bar that fills as you go, no tabs or foot bar, the live goal in bold with a gold count, quest and level under each goal, Up next on a fading rail. Compact mode drops Up next and the XP row.",
-			tokens = { accent = "#e6ba66" },
-			preset = { ["guideWindow.tabs"] = false, ["guideWindow.progress"] = false, ["ui.upcoming"] = 3, ["ui.upcomingOpen"] = true } },
-		{ id = "j2", name = "J2: one bar, timeline", desc = "J with the steps on a rail: the last step faded above the title, done goals kept in place, the counts in a column, the tip as a strip at the card's foot and Up next on the rail. The Journey is a card below the window, collapsed. Training and the class quest come up as cards above the window. Compact mode keeps the tip strip.",
-			tokens = { accent = "#e6ba66" },
-			preset = { ["guideWindow.tabs"] = false, ["guideWindow.progress"] = false, ["nav.journeyOpen"] = false, ["ui.upcoming"] = 3, ["ui.upcomingOpen"] = true } },
 	},
-	defaultVariant = "calm",
+	defaultVariant = "atlas",
 	resolve = function(ctx)
 		if OWN_ACCENT[ctx.variant] then return nil end
 		local c = ctx.classColor and mute(ctx.classColor)
@@ -1576,7 +1527,6 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 			return false
 		end,
 		guideRow = function(row, goal, info)
-			ledgerRow(row, goal, info)
 			jRow(row, goal, info)
 			countColumn(row, goal, info)
 		end,

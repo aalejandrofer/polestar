@@ -453,23 +453,19 @@
 	];
 	// The mockup's saved picks (guide-layouts PRESETS), with the Atlas variant each wants.
 	const LAB_PRESETS = [
-		['J', 'j', { extras: 'above', header: 'fill', title: 'rule', num: 'none', marker: 'icon', live: 'gold', meta: 'count', quest: 'lvl', card: 'flat', tip: 'strip', upnext: 'timeline', tl: 'fade', progress: 'off', notices: 'off', classq: 'off', journey: 'off', xp: 'on', density: 'comfy' }],
-		['Jc', 'j', { extras: 'above', header: 'fill', title: 'rule', num: 'none', marker: 'icon', live: 'gold', meta: 'count', quest: 'lvl', card: 'flat', tip: 'strip', upnext: 'off', tl: 'fade', progress: 'off', notices: 'off', classq: 'off', journey: 'off', xp: 'off', density: 'dense' }],
-		['J2', 'j2', { extras: 'above', header: 'fill', title: 'rule', num: 'none', marker: 'icon', live: 'gold', meta: 'count', quest: 'lvl', card: 'flat', tip: 'under', upnext: 'timeline', tl: 'fade', progress: 'off', notices: 'one', classq: 'headsup', journey: 'shut', xp: 'on', density: 'comfy' }],
-		['J2c', 'j2c', { extras: 'above', header: 'fill', title: 'rule', num: 'none', marker: 'icon', live: 'gold', meta: 'count', quest: 'lvl', card: 'flat', tip: 'strip', upnext: 'off', tl: 'fade', progress: 'off', notices: 'one', classq: 'headsup', journey: 'off', xp: 'off', density: 'dense' }],
+		['Atlas', 'atlas', { extras: 'above', header: 'fill', title: 'rule', num: 'none', marker: 'icon', live: 'gold', meta: 'count', quest: 'lvl', card: 'flat', tip: 'under', upnext: 'timeline', tl: 'fade', progress: 'off', notices: 'one', classq: 'headsup', journey: 'shut', xp: 'on', density: 'comfy' }],
 	];
 	const lab = { notices: null, preset: null };
 
 	function labValues() { return (state && state.layout && state.layout.values) || {}; }
 	function labVariants() { const v = state && state.layout && state.layout.variants; return Array.isArray(v) ? v : []; }
-	function isJ() { const v = labValues(); return v['ui.skin'] === 'atlas' && /^j/.test(String(v['ui.skinVariants.atlas'] || '')); }
-	// The J-family variant to use: the one on now, else `want` when the skin has it, else J.
+	function isJ() { const v = labValues(); return v['ui.skin'] === 'atlas' && /^atlas/.test(String(v['ui.skinVariants.atlas'] || '')); }
+	// The Atlas variant to use: the one on now, else `want` when the skin has it, else Atlas.
 	function jVariant(want) {
 		const have = labVariants().map((x) => x.id);
 		if (want && have.includes(want)) return want;
-		if (want === 'j2c' && have.includes('j2')) return 'j2';
 		const now = labValues()['ui.skinVariants.atlas'];
-		return !want && isJ() ? now : 'j';
+		return !want && isJ() ? now : 'atlas';
 	}
 	function optionSettings(o, variant) {
 		const out = [];
