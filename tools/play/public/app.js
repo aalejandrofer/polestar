@@ -898,11 +898,23 @@
 		walk.viewing = -1;
 		act({ type: 'render' });
 	}
-	async function tick() {
+	const selectedCards = new Set();
+	const cardButtons = $$('[data-walk-card]');
+	function updateCardButtons() {
+		for (const button of cardButtons) {
+			const on = selectedCards.has(Number(button.dataset.walkCard));
+			button.setAttribute('aria-pressed', String(on));
+		}
+	}
+	async function tick(preview) {
+		if (!preview && selectedCards.size) {
+			selectedCards.clear();
+			updateCardButtons();
+		}
 		backToLive();
 		const action = {
 			type: 'walk', strides: Number($('#walk-strides').value), every: Number($('#walk-every').value),
-			xp: $('#walk-xp').checked, restart: walk.restart, seed: 1,
+			cards: $('#walk-cards').checked, preview, xp: $('#walk-xp').checked, restart: walk.restart, seed: 1,
 		};
 		walk.restart = false;
 		const before = state && state.guide ? state.guide.step : null;
@@ -938,6 +950,25 @@
 	$('#walk-tick').addEventListener('click', () => {
 		stopWalk();
 		tick();
+	});
+	for (const button of cardButtons) button.addEventListener('click', () => {
+		stopWalk();
+		const card = Number(button.dataset.walkCard);
+		if (selectedCards.has(card)) selectedCards.delete(card);
+		else {
+			// The two large previews share the heads-up card.
+			if (card === 3) selectedCards.delete(7);
+			if (card === 7) selectedCards.delete(3);
+			selectedCards.add(card);
+		}
+		updateCardButtons();
+		tick([...selectedCards]);
+	});
+	$('#clear-card-previews').addEventListener('click', () => {
+		stopWalk();
+		selectedCards.clear();
+		updateCardButtons();
+		tick([]);
 	});
 	seek.addEventListener('input', () => {
 		const i = Number(seek.value);

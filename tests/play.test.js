@@ -61,6 +61,27 @@ test('a scripted session: hub, a guide, a goal, a scheme change, the world map, 
 		assert.equal(f.state.guide.id, g.id);
 		const before = f.state.guide.goals.filter((x) => x.status === 'done').length + f.state.guide.step * 100;
 
+		// Walk previews exercise the real Atlas cards without advancing the guide.
+		f = await act(play.url, { type: 'layout', settings: [
+			['ui.skinVariants.atlas', 'j2'], ['ui.skin', 'atlas'], ['ui.compact', false],
+		] });
+		for (const [i, text] of ['Optional', "While you're here", 'Class quest', 'Bags full', 'Journey', 'Tip', 'New abilities'].entries()) {
+			f = await act(play.url, { type: 'walk', card: i + 1 });
+			assert.equal(f.errors.length, 0, JSON.stringify(f.errors));
+			assert.equal(f.result.kind, 'event');
+			assert.equal(f.result.event, text);
+			assert.ok(f.svg.startsWith("<svg"));
+			assert.equal(f.state.guide.step * 100 + f.state.guide.goals.filter((x) => x.status === 'done').length, before);
+		}
+		f = await act(play.url, { type: 'walk', preview: [1, 2, 4, 5, 6] });
+		assert.deepEqual(f.errors, []);
+		assert.equal(f.result.label, "Optional + While you're here + Bags full + Journey + Tip");
+		assert.equal(f.state.guide.step * 100 + f.state.guide.goals.filter((x) => x.status === 'done').length, before);
+		f = await act(play.url, { type: 'walk', preview: [] });
+		assert.deepEqual(f.errors, []);
+		assert.equal(f.result.label, 'Previews cleared');
+		f = await act(play.url, { type: 'layout', settings: [['ui.skin', 'polestar']] });
+
 		// Do a goal: the Engine sees the world change.
 		f = await act(play.url, { type: 'goal' });
 		assert.ok(['done', 'advanced'].includes(f.result), `goal result ${f.result}`);

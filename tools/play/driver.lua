@@ -934,6 +934,72 @@ local function walkRefresh()
 	if GF and GF.Layout then pcall(GF.Layout) end
 end
 
+-- Preview cards with temporary data sources. The guide and character do not change.
+local CARD_EVENTS = { "Optional", "While you're here", "Class quest", "Bags full", "Journey", "Tip", "New abilities" }
+
+local function previewCards(selected)
+	local E, UI = Polestar.Engine, Polestar.UI
+	local restores = {}
+	local function patch(t, key, fn)
+		local old = t[key]
+		restores[#restores + 1] = function() t[key] = old end
+		t[key] = fn
+	end
+	local ok, err = pcall(function()
+		if selected.Optional or selected.Tip then
+			local get = E.GetStepView
+			local step = E.GetStepIndex()
+			patch(E, "GetStepView", function(index, ...)
+				local view = get(index, ...)
+				if not view or view.index ~= step then return view end
+				local copy = {}
+				for k, v in pairs(view) do copy[k] = v end
+				if selected.Tip then
+					copy.note, copy.image = "Check the path near the bridge before heading up the hill.", nil
+				end
+				if selected.Optional then
+					copy.goals = { unpack(view.goals) }
+					local i = #copy.goals + 1
+					copy.goals[i] = { index = i, optional = true, previewOnly = true,
+						status = "active", t = "talk", text = "Talk to the nearby scout" }
+				end
+				return copy
+			end)
+		end
+		if selected["While you're here"] then
+			patch(E, "GetWhileHereList", function() return { fakeHere() } end)
+		end
+		if selected["Class quest"] then
+			UI.ClassToast.ShowCard({ head = "CLASS QUEST", title = "Visit your class trainer",
+				giver = "Your trainer has a class quest for you", icon = Polestar.Theme.Media("icon-train"),
+				iconColor = "accent", act = { label = "Got it", run = UI.ClassToast.Hide } })
+		elseif selected["New abilities"] then
+			local model = UI.SpellCards.LevelModel({
+				level = stub.world.level, spells = { { id = 139, rank = 1, cost = 100 } }, cost = 100, money = 0,
+			})
+			model.act, model.off, model.noAct = nil, nil, true
+			UI.ClassToast.ShowCard(model)
+		end
+		if selected["Bags full"] then
+			patch(Polestar.QoL.Space, "Banner", function() return { free = 0 } end)
+		end
+		if selected.Journey then
+			local JP = UI.JourneyPanel
+			patch(JP, "Route", function()
+				return {
+					{ kind = "walk", label = "Walk to the crossing", yards = 420, seconds = 56 },
+					{ kind = "boat", label = "Take the ferry", yards = 900, seconds = 90, to = { name = "The next stop" } },
+				}, 1
+			end)
+			JP.Refresh(true)
+		end
+		UI.GuideFrame.Render()
+		UI.GuideFrame.Layout()
+	end)
+	for i = #restores, 1, -1 do restores[i]() end
+	if not ok then error(err) end
+end
+
 -- One tick of the walk. opts: strides (per walk to a goal), every (a random
 -- event every n goals, 0 none), seed, xp (false: no XP). -> { kind = "stride"
 -- | "goal" | "event" | "end", label, result, level, levels (gained), xp,
@@ -951,6 +1017,27 @@ function play.walkTick(opts)
 	local G, i = E.GetGuide(), E.GetStepIndex()
 	if not (G and i) then return { kind = "end", label = G and "The guide is done" or "No guide open" } end
 	local GF = Polestar.UI.GuideFrame
+	local preview = CARD_EVENTS[tonumber(opts.card) or 0]
+	if walk.preview then
+		if walk.preview["Class quest"] or walk.preview["New abilities"] then Polestar.UI.ClassToast.Hide() end
+		if walk.preview.Journey then Polestar.UI.JourneyPanel.Refresh(true) end
+		walk.preview = nil
+		walkRefresh()
+	end
+	if type(opts.preview) == "table" or preview then
+		local selected = {}
+		for _, id in ipairs(opts.preview or {}) do
+			local name = CARD_EVENTS[tonumber(id) or 0]
+			if name then selected[name] = true end
+		end
+		if preview then selected[preview] = true end
+		previewCards(selected)
+		walk.preview = selected
+		local names = {}
+		for _, name in ipairs(CARD_EVENTS) do if selected[name] then names[#names + 1] = name end end
+		return { kind = "event", label = #names > 0 and table.concat(names, " + ") or "Previews cleared",
+			event = preview, step = i, level = w.level }
+	end
 	-- A dropped-in banner stays one goal, then goes.
 	if walk.dropped and walk.stride == 0 then
 		if GF and GF.notices then GF.notices.questSkip, GF.notices.train = nil, nil end
@@ -999,11 +1086,18 @@ function play.walkTick(opts)
 		out.kind, out.label, out.result = "goal", label, r
 		local every = tonumber(opts.every) or 0
 		if every > 0 and walk.goals % every == 0 and GF and GF.notices then
-			local e = EVENTS[math.random(#EVENTS)]
-			pcall(e[2], GF)
-			walk.dropped = true
-			walkRefresh()
-			out.event = e[1]
+			if opts.cards then
+				local card = CARD_EVENTS[(math.floor(walk.goals / every) - 1) % #CARD_EVENTS + 1]
+				walk.preview = { [card] = true }
+				previewCards(walk.preview)
+				out.event = card
+			else
+				local e = EVENTS[math.random(#EVENTS)]
+				pcall(e[2], GF)
+				walk.dropped = true
+				walkRefresh()
+				out.event = e[1]
+			end
 		end
 	end
 	out.level, out.step = w.level, E.GetStepIndex()
