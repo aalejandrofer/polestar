@@ -170,7 +170,7 @@ ns.ClassRewards = {
 		{ kind = "armor", show = "item", items = { 20704 }, itemNames = { "Cenarion Reservist's Leggings" }, icon = 134626 },
 		{ kind = "armor", show = "item", items = { 20369, 20503, 20556 }, choice = true, icon = 132964 },
 		{ kind = "item", show = "item", items = { 20620 }, itemNames = { "Holy Mightstone" }, icon = 135241 },
-		{ kind = "armor", show = "item", items = { 20521, 20130, 20517 }, choice = true, icon = 133069 },
+		{ kind = "armor", show = "item", items = { 20521, 20130, 20517 }, itemNames = { "Fury Visor", "Diamond Flask", "Razorsteel Shoulders" }, choice = true, icon = 133069 },
 		{ kind = "weapon", show = "item", items = { 20536, 20534, 20530 }, choice = true, icon = 135358 },
 		{ kind = "armor", show = "item", items = { 21330 }, itemNames = { "Conqueror's Spaulders" }, icon = 135066 },
 		{ kind = "armor", show = "item", items = { 21393 }, itemNames = { "Signet of Unyielding Strength" }, icon = 133425 },

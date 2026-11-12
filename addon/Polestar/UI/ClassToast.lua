@@ -465,10 +465,21 @@ end
 
 function layout(width)
 	f:SetWidth(width)
-	local x = PAD + STRIPE + RING + 12
+	local _, atlas = Theme.SkinHookValue("card", f, "headsupCompact", {})
+	local training = atlas and CT.current and CT.current.kind == "levelUp"
+	Theme.Font(f.Title, training and "label" or "name")
+	Theme.Font(f.Head, "small")
+	if training then f.Head:SetTextColor(Theme.Color("textMuted")) end
+	local pad, ring, stripe = atlas and 8 or PAD, atlas and 24 or RING, atlas and 0 or STRIPE
+	local x = pad + stripe + ring + (atlas and 8 or 12)
+	f.Stripe:SetShown(not atlas)
+	f.Ring:SetShown(not atlas)
+	f.Disc:SetShown(not atlas)
+	f.Rule:SetShown(not atlas)
 	local closeW = f.Close:GetWidth() + 6
 	f.Ring:ClearAllPoints()
-	f.Ring:SetPoint("TOPLEFT", f, "TOPLEFT", PAD + STRIPE, -PAD)
+	f.Ring:SetPoint("TOPLEFT", f, "TOPLEFT", pad + stripe, -pad)
+	f.Ring:SetSize(ring, ring)
 	f.Close:ClearAllPoints()
 	f.Close:SetPoint("TOPRIGHT", f, "TOPRIGHT", -6, -6)
 	-- The chip sits beside the header; on a window too narrow for both on
@@ -481,16 +492,16 @@ function layout(width)
 		f.Badge:ClearAllPoints()
 		beside = W.TextWidth(f.Head) <= headW - badgeW - 8
 		if beside then
-			f.Badge:SetPoint("TOPRIGHT", f, "TOPRIGHT", -(closeW + 4), -PAD + 2)
+			f.Badge:SetPoint("TOPRIGHT", f, "TOPRIGHT", -(closeW + 4), -pad + 2)
 			headW = headW - badgeW - 8
 		end
 	end
-	local tw = max(60, width - x - PAD)
+	local tw = max(60, width - x - pad)
 	f.Head:SetWidth(max(40, headW))
 	f.Title:SetWidth(max(60, width - x - closeW))
 	f.Giver:SetWidth(tw)
 	f.Route:SetWidth(tw)
-	local y = PAD
+	local y = pad
 	f.Head:ClearAllPoints()
 	f.Head:SetPoint("TOPLEFT", f, "TOPLEFT", x, -y)
 	y = y + f.Head:GetStringHeight() + 4
@@ -508,26 +519,6 @@ function layout(width)
 			y = y + fs:GetStringHeight() + 3
 		end
 	end
-	local spells = CT.current and CT.current.spells
-	if spells and #spells > 0 then
-		local bx = x
-		for i = 1, min(#spells, SPELLS_MAX) do
-			local b = f.SpellRow[i]
-			b:ClearAllPoints()
-			b:SetPoint("TOPLEFT", f, "TOPLEFT", bx, -y)
-			bx = bx + SPELL + 4
-		end
-		if f.SpellMore:IsShown() then
-			f.SpellMore:ClearAllPoints()
-			f.SpellMore:SetPoint("LEFT", f, "TOPLEFT", bx + 2, -(y + SPELL / 2))
-		end
-		y = y + SPELL + 4
-	end
-	y = max(y, PAD + RING) + 10
-	f.Rule:ClearAllPoints()
-	f.Rule:SetPoint("TOPLEFT", f, "TOPLEFT", PAD + STRIPE, -y)
-	f.Rule:SetPoint("TOPRIGHT", f, "TOPRIGHT", -PAD, -y)
-	y = y + 10
 	-- The buttons in one row: the action, another heads-up's second button
 	-- ("Open in Dungeons"), Later and its "stop these". When they don't all
 	-- fit in the card's width, Later and the rest start a row of their own,
@@ -535,7 +526,7 @@ function layout(width)
 	-- with nothing to do (m.noAct) starts with Later.
 	local act = (f.Act:IsShown() and f.Act) or (f.Open:IsShown() and f.Open) or (f.ShowMe:IsShown() and f.ShowMe) or nil
 	local row = { act }
-	local avail, total = width - 2 * PAD - STRIPE, act and act:GetWidth() or 0
+	local avail, total = width - 2 * pad - stripe, act and act:GetWidth() or 0
 	for _, b in ipairs({ f.More, f.Later, f.Off }) do
 		if b:IsShown() then
 			if #row > 0 then total = total + (row[#row] == act and 8 or 4) end
@@ -543,7 +534,44 @@ function layout(width)
 			row[#row + 1] = b
 		end
 	end
-	local left, used, prev = PAD + STRIPE, 0, nil
+	if atlas then y = max(y, pad + ring) + 4 end
+	local left = pad + stripe
+	local spells = CT.current and CT.current.spells
+	local spellCount = spells and min(#spells, SPELLS_MAX) or 0
+	if spellCount > 0 then
+		local iconSize = atlas and 20 or SPELL
+		local more = f.SpellMore:IsShown()
+		local spellWidth = spellCount * (iconSize + 4)
+		if more then spellWidth = spellWidth + f.SpellMore:GetUnboundedStringWidth() + 2 end
+		local inline = training and x - left + spellWidth + 8 + total <= avail
+		local by = inline and y + max(0, (row[1]:GetHeight() - iconSize) / 2) or y
+		local bx = x
+		for i = 1, spellCount do
+			local b = f.SpellRow[i]
+			b:ClearAllPoints()
+			b:SetPoint("TOPLEFT", f, "TOPLEFT", bx, -by)
+			b:SetSize(iconSize, iconSize)
+			bx = bx + iconSize + 4
+		end
+		if more then
+			f.SpellMore:ClearAllPoints()
+			f.SpellMore:SetPoint("LEFT", f, "TOPLEFT", bx + 2, -(by + iconSize / 2))
+		end
+		if inline then
+			left = width - pad - total
+			avail = total
+		else
+			y = y + iconSize + 4
+		end
+	end
+	if not atlas then
+		y = max(y, pad + ring) + (atlas and 2 or 10)
+		f.Rule:ClearAllPoints()
+		f.Rule:SetPoint("TOPLEFT", f, "TOPLEFT", pad + stripe, -y)
+		f.Rule:SetPoint("TOPRIGHT", f, "TOPRIGHT", -pad, -y)
+		y = y + (atlas and 2 or 10)
+	end
+	local used, prev = 0, nil
 	for _, b in ipairs(row) do
 		b:ClearAllPoints()
 		local gap = prev == act and 8 or 4
@@ -557,7 +585,7 @@ function layout(width)
 		end
 		prev = b
 	end
-	y = y + prev:GetHeight() + PAD
+	y = y + prev:GetHeight() + pad
 	f:SetHeight(floor(y + 0.5))
 end
 
@@ -584,10 +612,12 @@ function CT.Place(animate)
 	local edge = ran and type(own) == "table" and own.GetTop and own or w
 	local top, room = edge:GetTop(), UIParent:GetTop()
 	local s, us = w:GetEffectiveScale() or 1, UIParent:GetEffectiveScale() or 1
-	local above = not (top and room) or (top + h) * s <= room * us
+	local _, gap = Theme.SkinHookValue("card", f, "headsupGap", {})
+	local _, aboveOnly = Theme.SkinHookValue("card", f, "headsupAboveOnly", {})
+	local above = aboveOnly or not (top and room) or (top + h + (gap or -1)) * s <= room * us
 	CT.side = above and "above" or "below"
 	if above then
-		Anim.Anchor(f, "BOTTOMLEFT", edge, "TOPLEFT", 0, -1)
+		Anim.Anchor(f, "BOTTOMLEFT", edge, "TOPLEFT", 0, gap or -1)
 	else
 		Anim.Anchor(f, "TOPLEFT", w, "BOTTOMLEFT", 0, 1)
 	end
@@ -649,14 +679,16 @@ function CT.ShowCard(m)
 	CT.current = m
 	paint(m.class)
 	local art = m.art
-	local size = art and ART or (m.iconColor and GLYPH) or ICON
+	local _, glyph = Theme.SkinHookValue("card", f, "headsupRewardGlyph", {})
+	glyph = not art and (m.reward or m.kind == "levelUp") and glyph or nil
+	local size = art and ART or ((glyph or m.iconColor) and GLYPH) or ICON
 	f.Icon:SetSize(size, size)
 	if f.Mask then f.Mask:SetSize(max(size, ICON), max(size, ICON)) end
 	if art then
 		f.Icon:SetTexture(art.file)
 		f.Icon:SetTexCoord(art.l, art.r, art.t, art.b)
 	else
-		f.Icon:SetTexture(m.icon)
+		f.Icon:SetTexture(glyph or m.icon)
 		f.Icon:SetTexCoord(0, 1, 0, 1)
 	end
 	local lift = art and art.lift
@@ -667,8 +699,8 @@ function CT.ShowCard(m)
 		f.Lift:SetAlpha(lift)
 	end
 	f.Lift:SetShown(lift ~= nil)
-	if m.iconColor and not art then
-		W.Color(f.Icon, m.iconColor)
+	if (glyph or m.iconColor) and not art then
+		W.Color(f.Icon, glyph and "accent" or m.iconColor)
 	else
 		W.Uncolor(f.Icon)
 		f.Icon:SetVertexColor(1, 1, 1, 1)
@@ -720,6 +752,11 @@ function CT.SpellButton(i)
 	b = CreateFrame("Button", nil, f)
 	b:SetSize(SPELL, SPELL)
 	b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+	-- A readable glyph while client art is unavailable.
+	local fallback = b:CreateTexture(nil, "BACKGROUND")
+	fallback:SetAllPoints(b)
+	fallback:SetTexture(Theme.Media("icon-train"))
+	W.Color(fallback, "textMuted")
 	b.Icon = b:CreateTexture(nil, "ARTWORK")
 	b.Icon:SetAllPoints(b)
 	b.Icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
