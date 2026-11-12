@@ -29,6 +29,7 @@
 				<label>Speed <input id="walk-speed" type="range" min="1" max="10" value="4"></label>
 				<label>Strides <input id="walk-strides" type="number" min="0" max="12" value="3"></label>
 				<label>Events <select id="walk-every"><option value="0">Off</option><option value="4">Every 4 goals</option><option value="6" selected>Every 6</option><option value="10">Every 10</option></select></label>
+				<label class="check"><input type="checkbox" id="walk-cards" checked> Cycle cards</label>
 				<label class="check"><input type="checkbox" id="walk-xp" checked> XP</label>
 				<label class="check" title="Show the screen at its real 1920x1080 pixels (the page scrolls), so the browser zoom works on it"><input type="checkbox" id="actual-size"> 100%</label>
 				<label class="check" title="The chat lines over the game screen"><input type="checkbox" id="show-chat" checked> Chat</label>
@@ -130,6 +131,20 @@
 				<button type="button" data-state="outlevel">Out-levelled banner</button>
 				<button type="button" data-state="train">Training due banner</button>
 				<button type="button" data-state="clearBanners" class="link">Clear banners</button>
+			</div>
+		</details>
+
+		<details open id="g-card-previews">
+			<summary>Card previews</summary>
+			<div class="actions chips">
+				<button type="button" aria-pressed="false" data-walk-card="1">Optional</button>
+				<button type="button" aria-pressed="false" data-walk-card="2">While You’re Here</button>
+				<button type="button" aria-pressed="false" data-walk-card="3">Class Quest</button>
+				<button type="button" aria-pressed="false" data-walk-card="4">Bags Full</button>
+				<button type="button" aria-pressed="false" data-walk-card="5">Journey</button>
+				<button type="button" aria-pressed="false" data-walk-card="6">Tip</button>
+				<button type="button" aria-pressed="false" data-walk-card="7">New Abilities</button>
+				<button type="button" id="clear-card-previews" class="link">Clear previews</button>
 			</div>
 		</details>
 

@@ -458,7 +458,7 @@ end`);
 			case 'goal': return 'return play.doGoal()';
 			case 'step': return 'return play.playStep()';
 			case 'guide': return 'return play.playGuide()';
-			case 'walk': return `return play.walkTick(${luaValue({ strides: n(a.strides, 3), every: n(a.every, 0), seed: n(a.seed, 1), xp: a.xp !== false, restart: !!a.restart })})`;
+			case 'walk': return `return play.walkTick(${luaValue({ strides: n(a.strides, 3), every: n(a.every, 0), seed: n(a.seed, 1), xp: a.xp !== false, restart: !!a.restart, cards: !!a.cards, card: n(a.card, 0), ...(Array.isArray(a.preview) ? { preview: a.preview } : {}) })})`;
 			case 'gotoStep': return `Polestar.Engine.Goto(${n(a.step, 1)})`;
 			case 'prevStep': return 'Polestar.Engine.Prev()';
 			case 'nextStep': return 'Polestar.Engine.Next()';
