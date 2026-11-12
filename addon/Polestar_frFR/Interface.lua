@@ -3244,7 +3244,7 @@ L["Loot that starts a quest glows on the quest item button; timed quests count d
 L["Hide it all"] = "Tout masquer"
 L["A click on the minimap button hides all of Polestar; another brings it back."] = "Un clic sur le bouton de la minicarte masque tout Polestar ; un autre le fait revenir."
 L["Browse all steps"] = "Voir toutes les étapes"
-L["Click the step number to see every step of the guide (thanks TTik3r and aalejandrofer)."] = "Cliquez sur le numéro d'étape pour voir toutes les étapes du guide (merci TTik3r et aalejandrofer)."
+L["Click the step number to see every step of the guide (thanks TTik3r and ttik3r)."] = "Cliquez sur le numéro d'étape pour voir toutes les étapes du guide (merci TTik3r et ttik3r)."
 L["Profession guides"] = "Guides de métiers"
 L["Rebuilt on Forever's trainers, and they start where your skill is."] = "Refaits sur les maîtres de Forever ; ils commencent à votre niveau de compétence."
 L["All of 0.3.7 in 9 languages, with thanks to our translators."] = "Toute la 0.3.7 en 9 langues, merci à nos traducteurs."
