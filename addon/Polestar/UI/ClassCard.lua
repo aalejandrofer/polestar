@@ -13,7 +13,9 @@
 -- the card with its tick box. Once that accept is done, the card shrinks to
 -- one slim line in the class colour ("Mage quest taken: hand it in to
 -- Marryk Nurribit"), so the step's person keeps the focus; it goes once the
--- quest is handed in or its reward known.
+-- quest is handed in or its reward known. A skin may keep it to the chain's
+-- first step in the guide (guideShows "classCardLater") and place it itself
+-- (guidePlace "classCard").
 -- The step's quest names take the class colour too (GuideFrame fillCard).
 --
 -- The first time a chain's card shows on a character it shines once (a soft
@@ -161,6 +163,23 @@ end
 local function chainOf(quest)
 	local e = entry(quest)
 	return e and e[2] or quest
+end
+
+-- Whether a step before `index` carries a quest of the chain. A skin may
+-- show the card on the chain's first step in the guide only (Skin API,
+-- guideShows "classCardLater" false): not again on each step after.
+local function chainBefore(guide, index, chain, p)
+	local ran, later = Theme.SkinHookValue("guideShows", "classCardLater", true)
+	if not (ran and later == false) then return false end
+	for s = 1, index - 1 do
+		local step = guide.steps[s]
+		if step and matches(step.only, p) then
+			for _, goal in ipairs(step.goals) do
+				if goal.quest and matches(goal.only, p) and chainOf(goal.quest) == chain then return true end
+			end
+		end
+	end
+	return false
 end
 
 -- The steps from `index` on that carry a quest of the chain: their count and
@@ -468,6 +487,7 @@ function CC.Fill(guide, index, view)
 	local step = guide and index and guide.steps and guide.steps[index]
 	local p = player()
 	local gi = step and view and p and p.class and cardGoal(step, view, p)
+	if gi and chainBefore(guide, index, chainOf(step.goals[gi].quest), p) then gi = nil end
 	if not gi then
 		if F then F:Hide() end
 		return nil
@@ -564,6 +584,7 @@ function CC.Fold(guide, view)
 	local gi = p and p.class and cardGoal(step, view, p)
 	local goal, gv = gi and step.goals[gi], gi and view.goals[gi]
 	if not (goal and goal.t == "accept" and gv) then return nil end
+	if chainBefore(guide, view.index, chainOf(goal.quest), p) then return nil end
 	if gv.status == "skipped" or gv.unavailable or gv.folded then return nil end
 	return gi
 end
@@ -591,7 +612,7 @@ function CC.Layout(width)
 		local h = floor(ah + 6 + 0.5)
 		F:SetSize(w, h)
 		F:ClearAllPoints()
-		F:SetPoint("TOPLEFT", F:GetParent(), "TOPLEFT", INSET, -INSET)
+		F:SetPoint("TOPLEFT", F.psHome or F:GetParent(), "TOPLEFT", INSET, -INSET)
 		return h + INSET + 4
 	end
 	local ring = F.psCompact and RING_COMPACT or RING
@@ -655,7 +676,7 @@ function CC.Layout(width)
 	local h = floor(y + 0.5)
 	F:SetSize(w, h)
 	F:ClearAllPoints()
-	F:SetPoint("TOPLEFT", F:GetParent(), "TOPLEFT", INSET, -INSET)
+	F:SetPoint("TOPLEFT", F.psHome or F:GetParent(), "TOPLEFT", INSET, -INSET)
 	return h + INSET + 4
 end
 
@@ -690,3 +711,6 @@ function CC.Celebrate()
 	Anim.To(F.Shine, "offsetX", 0, w + SHINE_W, SHINE_SECONDS, "inout", function(t) t:Hide() end)
 	return true
 end
+
+-- The card's frame, once built (a skin places it: guidePlace "classCard").
+function CC.Frame() return F end

@@ -280,6 +280,18 @@ C_Map.GetMapArtID = function(id) local m = ART[id]; return m and m.artID end`);
 		if (fs.existsSync(path.join(ROOT, 'addon', 'Polestar_Nav', 'Polestar_Nav.toc'))) {
 			lines.push(`stub.packs.Polestar_Nav = { ${tocFiles('Polestar_Nav').map(luaString).join(', ')} }`);
 		}
+		// Skin addons in addon/ (a TOC with X-Polestar-Skin) are installed and load on demand, as in the client.
+		for (const part of fs.readdirSync(path.join(ROOT, 'addon'))) {
+			const toc = path.join(ROOT, 'addon', part, `${part}.toc`);
+			if (!fs.existsSync(toc)) continue;
+			const text = fs.readFileSync(toc, 'utf8');
+			const ids = /^## X-Polestar-Skin:\s*(.+)$/m.exec(text);
+			if (!ids) continue;
+			const title = (/^## Title:\s*(.+)$/m.exec(text) || [])[1] || part;
+			lines.push(`stub.packs.${part} = { ${tocFiles(part).map(luaString).join(', ')} }`,
+				`table.insert(stub.addons, { name = ${luaString(part)}, title = ${luaString(title.trim())} })`,
+				`stub.addonMeta[${luaString(part)}] = { ["X-Polestar-Skin"] = ${luaString(ids[1].trim())} }`);
+		}
 		lines.push(d.metrics);
 		dof(path.join(ROOT, 'tools', 'preview', 'stub.lua'));
 		lines.push('preview.enableTooltips()');
@@ -436,10 +448,17 @@ end`);
 			case 'key': return `play.key(${luaString(String(a.key || ''))}, ${a.text == null ? 'nil' : luaString(String(a.text))})`;
 			case 'slash': return `play.slash(${luaString(String(a.text || ''))})`;
 			case 'set': return `Polestar.Set(${luaString(String(a.path))}, ${a.value == null ? 'nil' : luaValue(a.value)})`;
+			// The Layout lab (app.js): settings written in order; a skin among them
+			// has its addon loaded first, as the skin picker does.
+			case 'layout': return (Array.isArray(a.settings) ? a.settings : []).map(([p, v]) => {
+				const set = `Polestar.Set(${luaString(String(p))}, ${v == null ? 'nil' : luaValue(v)})`;
+				return p === 'ui.skin' && typeof v === 'string' ? `if Polestar.Theme.LoadSkinAddon then Polestar.Theme.LoadSkinAddon(${luaString(v)}) end; ${set}` : set;
+			}).join('\n');
 			case 'resetLook': return `for _, k in ipairs({ "style", "compact", "scale", "width", "bgOpacity", "opacity", "scheme", "accent", "bgColor", "brightness", "upcoming", "upcomingOpen", "showNotes", "menuScale", "font", "locked", "pos" }) do Polestar.Set("ui." .. k, Polestar.GetDefault("ui." .. k)) end`;
 			case 'goal': return 'return play.doGoal()';
 			case 'step': return 'return play.playStep()';
 			case 'guide': return 'return play.playGuide()';
+			case 'walk': return `return play.walkTick(${luaValue({ strides: n(a.strides, 3), every: n(a.every, 0), seed: n(a.seed, 1), xp: a.xp !== false, restart: !!a.restart })})`;
 			case 'gotoStep': return `Polestar.Engine.Goto(${n(a.step, 1)})`;
 			case 'prevStep': return 'Polestar.Engine.Prev()';
 			case 'nextStep': return 'Polestar.Engine.Next()';

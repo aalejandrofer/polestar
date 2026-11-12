@@ -388,6 +388,178 @@
 	$('#tip-toggle').addEventListener('click', () => act({ type: 'tip' }));
 	$('#reset-look').addEventListener('click', () => act({ type: 'resetLook' }));
 
+	// -------------------------------------------------------------------------
+	// The Guide Card section: the guide-layouts mockup's Mix page (data/local
+	// mockups, sandbox/guide-layouts) on the real window. Each axis value the
+	// addon can show maps to real settings; `j`: the Atlas skin's J variants
+	// draw it; `notJ`: the J variants hide it; `state`: a playground state, not
+	// a setting. The rest need a skin knob and are left out, never faked.
+
+	const AXES = [
+		['extras', 'Extra cards', [['above', 'Outside above', { set: {} }]], 'Below, joined, inside, beside, chips, hidden'],
+		['header', 'Header', [
+			['full', 'Tabs + navigator', { set: { 'guideWindow.tabs': true, 'ui.growUp': false, 'ui.barsBottom': false } }],
+			['fill', 'Bar fills', { j: true, set: { 'guideWindow.tabs': false, 'ui.growUp': false, 'ui.barsBottom': false } }],
+			['bottom', 'At the bottom', { set: { 'ui.growUp': true, 'ui.barsBottom': true }, note: 'ui.growUp + ui.barsBottom: the window grows up from its foot' }],
+		], 'One bar, minimal, step in header, breadcrumb, centre pill, tabs only, tab on top, none'],
+		['title', 'Step title', [['rule', 'Underlined', { j: true }]], 'Zone right/after/above/below, large, band, gold, small caps, none'],
+		['num', 'Numbers', [], 'None, step no., goal nos., both'],
+		['marker', 'Goal marker', [], 'Action icon, checkbox, both, dot'],
+		['live', 'Live goal', [
+			['gold', 'Bold + gold count', { j: true }],
+			['bar', 'Accent bar', { notJ: true, set: { 'guideWindow.targetBar': true } }],
+			['none', 'None', { notJ: true, set: { 'guideWindow.targetBar': false } }],
+		], 'Row fill, fade fill, outline, arrow, pulse dot, now tag, progress line, dim the rest, lead row'],
+		['meta', 'Count + distance', [], 'Right column, after text, count only, none'],
+		['quest', 'Quest name', [['lvl', 'Sub-line + level', { j: true }]], 'Off, sub-line without level'],
+		['card', 'Step body', [['flat', 'Flat', { j: true }]], 'Card, tint, outline, raised, split, rules, lined, zebra, row cards'],
+		['tip', 'Tip', [
+			['strip', 'Foot strip', { set: { 'ui.showNotes': true } }],
+			['off', 'Off', { set: { 'ui.showNotes': false } }],
+		], 'Under its goal, chip on title'],
+		['upnext', 'Up next', [
+			['list', 'List of 3', { notJ: true, set: { 'ui.upcoming': 3, 'ui.upcomingOpen': true } }],
+			['line', 'One step', { set: { 'ui.upcoming': 1, 'ui.upcomingOpen': true }, note: 'ui.upcoming 1: one step listed, not a one-line Next' }],
+			['timeline', 'Timeline', { j: true, set: { 'ui.upcoming': 3, 'ui.upcomingOpen': true } }],
+			['off', 'Off', { set: { 'ui.upcoming': 0 } }],
+		], 'A one-line Next; a list under J (J always draws the rail)'],
+		['tl', 'Timeline style', [['fade', 'Fade ahead', { j: true }]], 'Rail, gold to here, dashed, numbered, icons, big numbers, step cards, no rail'],
+		['progress', 'Progress', [
+			['foot', 'Foot bar', { set: { 'guideWindow.progress': true, 'guideWindow.progressHeight': 3 } }],
+			['hair', 'Hairline', { set: { 'guideWindow.progress': true, 'guideWindow.progressHeight': 1 } }],
+			['off', 'None', { set: { 'guideWindow.progress': false } }],
+		], '% by counter, ring'],
+		['notices', 'Notices', [
+			['off', 'None', { state: 'clearBanners' }],
+			['one', 'One', { state: 'train', note: 'the Training due banner' }],
+		], 'Two, all of them (the window shows one at a time)'],
+		['classq', 'Class quest', [
+			['headsup', 'Heads-up above', { set: { 'toasts.headsup.place': 'above', 'toasts.headsup.compact': false }, note: 'shows when the game raises it (a class quest at your level)' }],
+			['compact', 'Heads-up, one line', { set: { 'toasts.headsup.place': 'above', 'toasts.headsup.compact': true }, note: 'shows when the game raises it' }],
+		], 'None, card in step, slim line (those follow the guide and the quest log)'],
+		['journey', 'Journey', [
+			['on', 'On', { set: { 'nav.journeySteps': true, 'nav.journeyOpen': true }, note: 'shows on a step with travel legs; never in compact mode' }],
+			['shut', 'Collapsed', { set: { 'nav.journeySteps': true, 'nav.journeyOpen': false }, note: 'shows on a step with travel legs; never in compact mode' }],
+			['off', 'Off', { set: { 'nav.journeySteps': false } }],
+		], 'Joined below'],
+		['xp', 'XP row', [
+			['on', 'On', { set: { 'ui.compact': false }, note: 'shown outside compact mode once there is XP pace' }],
+			['off', 'Off (compact)', { set: { 'ui.compact': true }, note: 'only compact mode hides it: it also drops Up next, the tabs and the Journey' }],
+		], 'Off on its own, outside compact mode'],
+		['density', 'Density', [
+			['comfy', 'Comfortable', { set: { 'ui.compact': false, 'guideWindow.padding': 0, 'guideWindow.rowSpacing': 0 } }],
+			['dense', 'Dense (compact)', { set: { 'ui.compact': true, 'guideWindow.padding': -3, 'guideWindow.rowSpacing': 0 }, note: 'ui.compact on: also drops Up next, the XP row, the tabs and the Journey' }],
+		], ''],
+	];
+	// The mockup's saved picks (guide-layouts PRESETS), with the Atlas variant each wants.
+	const LAB_PRESETS = [
+		['J', 'j', { extras: 'above', header: 'fill', title: 'rule', num: 'none', marker: 'icon', live: 'gold', meta: 'count', quest: 'lvl', card: 'flat', tip: 'strip', upnext: 'timeline', tl: 'fade', progress: 'off', notices: 'off', classq: 'off', journey: 'off', xp: 'on', density: 'comfy' }],
+		['Jc', 'j', { extras: 'above', header: 'fill', title: 'rule', num: 'none', marker: 'icon', live: 'gold', meta: 'count', quest: 'lvl', card: 'flat', tip: 'strip', upnext: 'off', tl: 'fade', progress: 'off', notices: 'off', classq: 'off', journey: 'off', xp: 'off', density: 'dense' }],
+		['J2', 'j2', { extras: 'above', header: 'fill', title: 'rule', num: 'none', marker: 'icon', live: 'gold', meta: 'count', quest: 'lvl', card: 'flat', tip: 'under', upnext: 'timeline', tl: 'fade', progress: 'off', notices: 'one', classq: 'headsup', journey: 'shut', xp: 'on', density: 'comfy' }],
+		['J2c', 'j2c', { extras: 'above', header: 'fill', title: 'rule', num: 'none', marker: 'icon', live: 'gold', meta: 'count', quest: 'lvl', card: 'flat', tip: 'strip', upnext: 'off', tl: 'fade', progress: 'off', notices: 'one', classq: 'headsup', journey: 'off', xp: 'off', density: 'dense' }],
+	];
+	const lab = { notices: null, preset: null };
+
+	function labValues() { return (state && state.layout && state.layout.values) || {}; }
+	function labVariants() { const v = state && state.layout && state.layout.variants; return Array.isArray(v) ? v : []; }
+	function isJ() { const v = labValues(); return v['ui.skin'] === 'atlas' && /^j/.test(String(v['ui.skinVariants.atlas'] || '')); }
+	// The J-family variant to use: the one on now, else `want` when the skin has it, else J.
+	function jVariant(want) {
+		const have = labVariants().map((x) => x.id);
+		if (want && have.includes(want)) return want;
+		if (want === 'j2c' && have.includes('j2')) return 'j2';
+		const now = labValues()['ui.skinVariants.atlas'];
+		return !want && isJ() ? now : 'j';
+	}
+	function optionSettings(o, variant) {
+		const out = [];
+		if (o.j) out.push(['ui.skin', 'atlas'], ['ui.skinVariants.atlas', variant || jVariant()]);
+		for (const [k, v] of Object.entries(o.set || {})) out.push([k, v]);
+		return out;
+	}
+	function optionOn(axis, o) {
+		if (o.state) return lab.notices === o.state;
+		if (o.j && !isJ()) return false;
+		if (o.notJ && isJ()) return false;
+		const v = labValues();
+		return Object.entries(o.set || {}).every(([k, x]) => v[k] === x);
+	}
+	function runOption(o, variant) {
+		if (o.state) {
+			lab.notices = o.state;
+			return act({ type: 'state', state: o.state });
+		}
+		return act({ type: 'layout', settings: optionSettings(o, variant) });
+	}
+
+	function buildLab() {
+		$('#lab-presets').innerHTML = LAB_PRESETS.map(([k]) => `<button type="button" data-lab-preset="${k}">${k}</button>`).join('');
+		const reach = AXES.filter((a) => a[2].length);
+		$('#lab-axes').innerHTML = reach.map(([k, label, opts, rest]) => `<span class="label">${escapeHtml(label)}</span><div class="chips">${
+			opts.map(([v, n, o]) => `<button type="button" data-lab="${k}" value="${v}"${o.note ? ` title="${escapeHtml(o.note)}"` : ''}>${escapeHtml(n)}</button>`).join('')
+		}</div>`).join('');
+	}
+	buildLab();
+
+	document.addEventListener('click', (e) => {
+		const b = e.target.closest('[data-lab], [data-lab-preset], [data-lab-skin]');
+		if (!b || b.disabled) return;
+		if (b.dataset.labSkin) {
+			const v = b.dataset.labSkin;
+			act({ type: 'layout', settings: v === 'polestar' ? [['ui.skin', 'polestar']] : [['ui.skin', 'atlas'], ['ui.skinVariants.atlas', v]] });
+			return;
+		}
+		if (b.dataset.labPreset) {
+			const [k, want, cfg] = LAB_PRESETS.find((p) => p[0] === b.dataset.labPreset);
+			const variant = jVariant(want);
+			const settings = [['ui.skin', 'atlas'], ['ui.skinVariants.atlas', variant]];
+			const skipped = [];
+			let notice = null;
+			for (const [axis, label, opts] of AXES) {
+				const hit = opts.find((o) => o[0] === cfg[axis]);
+				if (!hit) { skipped.push(label); continue; }
+				if (hit[2].state) notice = hit[2];
+				else for (const s of optionSettings(hit[2], variant)) if (s[0] !== 'ui.skin' && s[0] !== 'ui.skinVariants.atlas') settings.push(s);
+			}
+			lab.preset = k;
+			act({ type: 'layout', settings });
+			if (notice) runOption(notice);
+			return;
+		}
+		const axis = AXES.find((a) => a[0] === b.dataset.lab);
+		const opt = axis && axis[2].find((o) => o[0] === b.value);
+		if (opt) {
+			lab.preset = null;
+			runOption(opt[2]);
+		}
+	});
+
+	function syncLab() {
+		const j = isJ();
+		const skins = [['polestar', 'Polestar'], ...labVariants().map((v) => [v.id, `Atlas ${v.name}`])];
+		const box = $('#lab-skin');
+		const want = skins.map((s) => s[0]).join(',');
+		if (box.dataset.list !== want) {
+			box.dataset.list = want;
+			box.innerHTML = skins.map(([id, n]) => `<button type="button" data-lab-skin="${id}">${escapeHtml(n)}</button>`).join('')
+				+ (labVariants().length ? '' : '<button type="button" data-lab-skin="j">Atlas J</button>');
+		}
+		const v = labValues();
+		for (const b of $$('button', box)) {
+			const id = b.dataset.labSkin;
+			b.setAttribute('aria-pressed', String(id === 'polestar' ? (v['ui.skin'] || 'polestar') === 'polestar' : v['ui.skin'] === 'atlas' && v['ui.skinVariants.atlas'] === id));
+		}
+		for (const b of $$('[data-lab]')) {
+			const axis = AXES.find((a) => a[0] === b.dataset.lab);
+			const o = axis[2].find((x) => x[0] === b.value)[2];
+			b.setAttribute('aria-pressed', String(optionOn(axis, o)));
+			b.disabled = !!(o.notJ && j);
+			if (o.notJ && j) b.title = 'The J variants hide it: pick the Polestar skin or another Atlas variant';
+			else b.title = o.note || '';
+		}
+		for (const b of $$('[data-lab-preset]')) b.setAttribute('aria-pressed', String(lab.preset === b.dataset.labPreset && j));
+	}
+
 	function luaLiteral(v) {
 		if (v === null || v === undefined) return 'nil';
 		if (typeof v === 'string') return JSON.stringify(v);
@@ -627,6 +799,7 @@
 		}).join('') || '<li><small>The quest log is empty.</small></li>';
 
 		$('#eui').checked = !!state.eui;
+		syncLab();
 	}
 
 	// -------------------------------------------------------------------------
@@ -682,6 +855,127 @@
 			known = version;
 		}, 1000);
 	}
+	// -------------------------------------------------------------------------
+	// The walk: the guide played a tick at a time (a stride toward the goal, or
+	// the goal), each frame kept so the bar under the chat can look back.
+
+	const walk = { on: false, timer: null, frames: [], viewing: -1, restart: true };
+	const KEEP = 400;
+	const seek = $('#walk-seek');
+	const marks = $('#walk-marks');
+	const now = $('#walk-now');
+
+	const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+	function describe(f, i) {
+		const r = f.tick || {};
+		const bits = [`<strong>${i + 1}</strong>/${walk.frames.length}`, `step ${r.step ?? '?'}`, `level ${r.level ?? '?'}`];
+		let what = r.label || r.kind || '';
+		if (r.kind === 'goal' && r.result && r.result !== 'done' && r.result !== 'advanced') what += ` (${r.result})`;
+		if (r.xp) what += ` · +${r.xp} XP`;
+		if (r.levels) what += ` · level up`;
+		if (r.event) what += ` · event: ${r.event}`;
+		bits.push(esc(what));
+		return bits.join(' · ');
+	}
+	function drawMarks() {
+		const n = walk.frames.length;
+		marks.innerHTML = walk.frames.map((f, i) => {
+			const r = f.tick || {};
+			const kind = r.levels ? 'level' : r.event ? 'event' : r.result === 'stuck' || r.result === 'skipped' ? 'stuck' : r.kind === 'goal' && f.newStep ? 'step' : null;
+			return kind ? `<i class="${kind}" style="left:${n > 1 ? (i / (n - 1)) * 100 : 0}%" title="${esc(describe(f, i).replace(/<[^>]+>/g, ''))}"></i>` : '';
+		}).join('');
+	}
+	function syncWalk() {
+		const n = walk.frames.length;
+		seek.max = Math.max(0, n - 1);
+		const at = walk.viewing >= 0 ? walk.viewing : n - 1;
+		seek.value = at;
+		if (n) now.innerHTML = (walk.viewing >= 0 ? '<span class="past">Looking back</span> · ' : '') + describe(walk.frames[at], at);
+		$('#walk-play').textContent = walk.on ? 'Pause' : 'Walk';
+	}
+	function backToLive() {
+		if (walk.viewing < 0) return;
+		walk.viewing = -1;
+		act({ type: 'render' });
+	}
+	async function tick() {
+		backToLive();
+		const action = {
+			type: 'walk', strides: Number($('#walk-strides').value), every: Number($('#walk-every').value),
+			xp: $('#walk-xp').checked, restart: walk.restart, seed: 1,
+		};
+		walk.restart = false;
+		const before = state && state.guide ? state.guide.step : null;
+		const frame = await act(action);
+		if (!frame || !frame.svg) return stopWalk();
+		const r = frame.result && typeof frame.result === 'object' ? frame.result : { kind: 'frame' };
+		walk.frames.push({ svg: frame.svg, tick: r, newStep: r.step !== before });
+		if (walk.frames.length > KEEP) walk.frames.shift();
+		drawMarks();
+		syncWalk();
+		const stopAt = Number($('#walk-stop').value);
+		if (r.kind === 'end' || (stopAt && r.step >= stopAt)) stopWalk();
+	}
+	function stopWalk() {
+		walk.on = false;
+		clearTimeout(walk.timer);
+		walk.timer = null;
+		syncWalk();
+	}
+	function loop() {
+		if (!walk.on) return;
+		const wait = 1400 / Number($('#walk-speed').value);
+		tick().then(() => {
+			if (walk.on) walk.timer = setTimeout(loop, wait);
+		});
+	}
+	$('#walk-play').addEventListener('click', () => {
+		if (walk.on) return stopWalk();
+		walk.on = true;
+		syncWalk();
+		loop();
+	});
+	$('#walk-tick').addEventListener('click', () => {
+		stopWalk();
+		tick();
+	});
+	seek.addEventListener('input', () => {
+		const i = Number(seek.value);
+		stopWalk();
+		if (i >= walk.frames.length - 1) return backToLive();
+		walk.viewing = i;
+		ui.innerHTML = walk.frames[i].svg;
+		syncWalk();
+	});
+	// The chat over the screen, on or off (remembered in this browser).
+	const chatBox = $('#show-chat');
+	try {
+		chatBox.checked = localStorage.getItem('polestar-play-chat') !== 'off';
+	} catch {}
+	screen.classList.toggle('no-chat', !chatBox.checked);
+	chatBox.addEventListener('change', () => {
+		screen.classList.toggle('no-chat', !chatBox.checked);
+		try {
+			localStorage.setItem('polestar-play-chat', chatBox.checked ? 'on' : 'off');
+		} catch {}
+	});
+	const sizeBox = $('#actual-size');
+	const game = $('.game');
+	try {
+		sizeBox.checked = localStorage.getItem('polestar-play-size') === 'actual';
+	} catch {}
+	game.classList.toggle('actual', sizeBox.checked);
+	sizeBox.addEventListener('change', () => {
+		game.classList.toggle('actual', sizeBox.checked);
+		try {
+			localStorage.setItem('polestar-play-size', sizeBox.checked ? 'actual' : 'fit');
+		} catch {}
+	});
+	// A new guide starts the walk over (its XP and strides).
+	$('#guide-load').addEventListener('click', () => {
+		walk.restart = true;
+	});
+
 	// For scripted sessions and debugging: the current hit map and state, and
 	// where a screen point is on the page.
 	window.PolestarPlay = {

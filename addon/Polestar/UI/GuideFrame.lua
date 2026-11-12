@@ -597,6 +597,16 @@ local function paintRow(r, goal, pop, sameStep, current, noParty, noMissing, noE
 		r.Icon:SetSize(ICON, ICON)
 	end
 	r.psStatus = status
+	-- The skin in use's touch on the painted row (Skin API, hooks.guideRow).
+	if Theme.SkinHooks("guideRow") then
+		local info = r.psRowInfo
+		if not info then
+			info = {}
+			r.psRowInfo = info
+		end
+		info.current, info.done, info.skipped = current and true or false, done, skipped
+		Theme.SkinHook("guideRow", r, goal, info)
+	end
 end
 
 local function layoutBar(b, tw)
@@ -837,7 +847,7 @@ do
 		local below, rel = fit.below, fit.rel
 		for i = 1, fit.n do
 			local f, at = below[i], -(y + rel[i])
-			f:SetPoint("TOPLEFT", body, "TOPLEFT", 0, at)
+			f:SetPoint("TOPLEFT", body, "TOPLEFT", f.psInset or 0, at)
 			f:SetPoint("TOPRIGHT", body, "TOPRIGHT", 0, at)
 		end
 		y = y + fit.h
@@ -1274,6 +1284,35 @@ local function tabMenu(self)
 	local reopen = GF.ReopenItem()
 	if reopen then table.insert(items, 3, reopen) end
 	W.ShowMenu(self, items, { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = 0, y = -2 })
+end
+
+-- "Close guide": closes the guide on screen (its tab), the next open one
+-- taking its place.
+function GF.CloseGuideItem()
+	local E = Engine()
+	local tabs, active = tabsOf(E)
+	return { text = L["Close guide"], icon = "close", disabled = not (E and E.CloseTab and tabs and active),
+		onClick = function() E.CloseTab(active) end }
+end
+
+-- The guides open in tabs, from the guide's title on the bar: a click
+-- switches to one, so a window with its tab strip off (guideWindow.tabs)
+-- still reaches every open guide.
+function GF.GuidesMenu(anchor)
+	local E = Engine()
+	local tabs, active = tabsOf(E)
+	if not tabs then return end
+	local items = {}
+	for i = 1, #tabs do
+		local t = tabs[i]
+		items[#items + 1] = { text = t.title or t.guideId, checked = i == active, onClick = function()
+			if E.SelectTab and i ~= active then E.SelectTab(i) end
+		end }
+	end
+	items[#items + 1] = { separator = true }
+	items[#items + 1] = { text = L["Open in new tab"], icon = "plus", disabled = not E.OpenTab, onClick = function() UI.ShowPicker({ newTab = true }) end }
+	items[#items + 1] = GF.CloseGuideItem()
+	W.ShowMenu(anchor, items, { point = "TOPLEFT", relPoint = "BOTTOMLEFT", x = 0, y = -2 })
 end
 
 -- A tab's label: the title, then its level range in a dimmer string. The
@@ -1744,10 +1783,15 @@ function GF.LayoutBanner(width)
 			banner.Text:SetText(L["You skipped this step."])
 			placeLink(banner.Jump, L["Unskip it"], 0, -4)
 		else
-			local live = UI.StepNo(n.live)
-			banner.Text:SetText(string.format(n.index > n.live and L["Looking ahead. The guide is at step %d."]
-				or L["Looking back. The guide is at step %d."], live))
-			placeLink(banner.Jump, string.format(L["Back to step %d"], live), 0, -4)
+			-- One line: "Looking ahead. Go back to step 12 ›", the link after the words.
+			banner.Text:SetText(n.index > n.live and L["Looking ahead."] or L["Looking back."])
+			placeLink(banner.Jump, string.format(L["Go back to step %d"], UI.StepNo(n.live)), 0, 0)
+			banner.Jump:ClearAllPoints()
+			banner.Jump:SetPoint("LEFT", banner.Text, "LEFT", floor(banner.Text:GetStringWidth() + 6 + 0.5), 0)
+			banner.Close:Show()
+			local h = floor(9 + math.max(banner.Text:GetStringHeight(), banner.Jump:GetHeight() or 0) + 9 + 0.5)
+			banner:SetHeight(h)
+			return h
 		end
 		banner.Close:Show()
 	elseif kind == "trip" then
@@ -2026,8 +2070,32 @@ end
 -- anchors; it never fetches views or builds strings.
 ---------------------------------------------------------------------------
 
+-- A part of the window the player (or a skin's preset) turns off:
+-- guideWindow.tabs, guideWindow.progress.
+ns.RegisterDefaults("guideWindow", { tabs = true, progress = true })
+-- The Skin API's helpers here (a table: this file is at Lua's 200 locals).
+local SK = {}
+function GF.On(key) return ns.Get("guideWindow." .. key) ~= false end
+
 local function stripShown()
-	return strip.psHasTabs and not compact()
+	return strip.psHasTabs and not compact() and GF.On("tabs")
+end
+
+-- A part a skin places itself (Skin API, hooks.guidePlace(name, frame,
+-- width, height)): laid out and shown, it is handed to the skin before the
+-- window places it; the answer true keeps it out of the window. A part the
+-- skin moved under a frame of its own goes back under its own once no skin
+-- claims it.
+function SK.claimed(name, frame, width, h)
+	local home = frame.psHome
+	if not home then
+		home = frame:GetParent()
+		frame.psHome = home
+	end
+	local ran, mine = Theme.SkinHookValue("guidePlace", name, frame, width, h)
+	if ran and mine == true then return true end
+	if frame:GetParent() ~= home then frame:SetParent(home) end
+	return false
 end
 
 -- Measure and place the card's parts; the goals area's own height is left
@@ -2038,7 +2106,12 @@ local function layoutCard(width)
 	local cw = width - PAD * 2
 	-- The class-quest card (UI/ClassCard.lua) above the person and the goals.
 	local CC = UI.ClassCard
-	if CC then y = CC.Layout(width) end
+	if CC then
+		y = CC.Layout(width)
+		-- A skin may place the card itself (Skin API, guidePlace "classCard").
+		local f = CC.Frame and CC.Frame()
+		if y > 0 and f and SK.claimed("classCard", f, width, y) then y = 0 end
+	end
 	-- A profession guide's skill-range heading over the step (fillCard).
 	local sec = card.Section
 	if sec:IsShown() then
@@ -2068,6 +2141,10 @@ local function layoutCard(width)
 			h = h + 3 + person.Level:GetStringHeight()
 		end
 		h = floor(h + 8 + 0.5)
+		-- A skin may lay the step's header out its own way (Skin API,
+		-- hooks.guidePerson(person, width, height)): its answer is the height.
+		local ran, skinH = Theme.SkinHookValue("guidePerson", person, cw, h)
+		if ran and type(skinH) == "number" then h = floor(skinH + 0.5) end
 		person:SetHeight(h)
 		person:ClearAllPoints()
 		person:SetPoint("TOPLEFT", card, "TOPLEFT", 0, -y)
@@ -2124,10 +2201,12 @@ local function layoutCard(width)
 			tip.Image:Hide()
 		end
 		tip:SetHeight(h)
-		tip:ClearAllPoints()
-		tip:SetPoint("TOPLEFT", goals, "BOTTOMLEFT", 0, -2)
-		tip:SetPoint("TOPRIGHT", goals, "BOTTOMRIGHT", 0, -2)
-		y = y + 2 + h
+		if not SK.claimed("tip", tip, width, h) then
+			tip:ClearAllPoints()
+			tip:SetPoint("TOPLEFT", goals, "BOTTOMLEFT", 0, -2)
+			tip:SetPoint("TOPRIGHT", goals, "BOTTOMRIGHT", 0, -2)
+			y = y + 2 + h
+		end
 	end
 	return y + 6
 end
@@ -2222,8 +2301,13 @@ do
 		upnext.Toggle:ClearAllPoints()
 		upnext.Toggle:SetPoint("TOPLEFT", upnext, "TOPLEFT", 0, 0)
 		upnext.Toggle:SetPoint("TOPRIGHT", upnext, "TOPRIGHT", 0, 0)
-		local y = -UP_TOGGLE
-		if upcomingOpen() then
+		-- A skin may leave out the "Up next" heading, its rows always open
+		-- (Skin API, hooks.guideShows "upnextHead").
+		local ran, head = Theme.SkinHookValue("guideShows", "upnextHead", true)
+		head = not (ran and head == false)
+		upnext.Toggle:SetShown(head)
+		local y = head and -UP_TOGGLE or 0
+		if upcomingOpen() or not head then
 			for i = 1, #upRows do
 				local r = upRows[i]
 				if r:IsShown() then y = y - placeRow(r, upnext, y, width) end
@@ -2288,6 +2372,24 @@ local function stack(frame, y, h)
 	return y + h
 end
 
+-- `frame` stacked at y, unless the skin places it itself (claimed): it is
+-- part `name` of hooks.guidePlace. `x`: its inset from the left (SK.inset).
+-- -> the new y
+local function place(name, frame, y, h, width, x)
+	if SK.claimed(name, frame, width, h) then return y end
+	frame.psInset = x
+	y = stack(frame, y, h)
+	if x and x > 0 then frame:SetPoint("TOPLEFT", body, "TOPLEFT", x, -(y - h)) end
+	return y
+end
+
+-- A part the skin sets in from the window's left edge (Skin API,
+-- hooks.guideInset(name)): "card", "upnext". -> its inset, 0 without one
+function SK.inset(name)
+	local ran, x = Theme.SkinHookValue("guideInset", name)
+	return (ran and type(x) == "number" and x > 0) and floor(x + 0.5) or 0
+end
+
 -- The tallest the window may be: ui.maxHeight of the screen's height, in
 -- the window's own units (its scale and the game's UI scale applied).
 local function capHeight()
@@ -2305,7 +2407,7 @@ local function stackJourney(y, width)
 	if not jf then return y end
 	if jf.psHas and not compact() then
 		jf:Show()
-		return stack(jf, y, J.Layout(width))
+		return place("journey", jf, y, J.Layout(width), width)
 	end
 	jf:Hide()
 	return y
@@ -2408,6 +2510,7 @@ function GF.Layout()
 	-- At the minimum width the controls take the row; the title must not sit
 	-- behind Skip (notably in compact mode, where the tab strip is hidden).
 	nav.Title:SetShown((not showStrip or not steps) and nav.Title:GetText() ~= nil and nav.Title:GetText() ~= "" and titleW >= 40)
+	nav.Title.Hit:SetShown(nav.Title:IsShown())
 	nav.Title:SetWidth(max(40, titleW))
 	card:SetWidth(width)
 
@@ -2416,8 +2519,8 @@ function GF.Layout()
 	-- Polestar show.
 	local kind = bannerNotice()
 	if kind and ((state ~= "noguide" and state ~= "noguides") or kind == "closedTab" or kind == "update") then
-		y = stack(banner, y, GF.LayoutBanner(width))
 		banner:Show()
+		y = place("banner", banner, y, GF.LayoutBanner(width), width)
 	else
 		banner:Hide()
 		banner.Jump.psDefault = nil
@@ -2430,40 +2533,49 @@ function GF.Layout()
 		for _, f in ipairs({ card, after, along, GF.here, upnext, UI.JourneyPanel and UI.JourneyPanel.frame }) do f:Hide() end
 		y = stack(list, y, UI.StepList.Layout(width, min(capHeight(), roomAbove() or math.huge) - ((showStrip and TAB_H or 0) + NAV_H + PROG_H + y)))
 	elseif state == "steps" then
-		fit.fixed = layoutCard(width)
+		local cx = SK.inset("card")
+		card:SetWidth(width - cx)
+		fit.fixed = layoutCard(width - cx)
 		fit.top = y
 		-- The card animates its own offset; keep its anchor's base in step.
 		if Anim.IsRunning(card, "offset") then
-			card.psAnchor[5] = -y
+			card.psAnchor[4], card.psAnchor[5] = cx, -y
 		else
-			Anim.Anchor(card, "TOPLEFT", body, "TOPLEFT", 0, -y)
+			Anim.Anchor(card, "TOPLEFT", body, "TOPLEFT", cx, -y)
 		end
 		content = contentHeight()
 		y = y + fit.fixed + content
 		fit.from = y
 		y = stackJourney(y, width)
 		-- "While you're here": between the step's goals and "Then:".
-		if GF.here:IsShown() then y = stack(GF.here, y, GF.LayoutHere(width)) end
-		if after:IsShown() then y = stack(after, y, layoutAfter(width)) end
-		if along:IsShown() then y = stack(along, y, layoutAlong(width)) end
-		if upnext:IsShown() then y = stack(upnext, y, layoutUpnext(width)) end
+		if GF.here:IsShown() then y = place("here", GF.here, y, GF.LayoutHere(width), width) end
+		if after:IsShown() then y = place("after", after, y, layoutAfter(width), width) end
+		if along:IsShown() then y = place("along", along, y, layoutAlong(width), width) end
+		if upnext:IsShown() then
+			local ux = SK.inset("upnext")
+			y = place("upnext", upnext, y, layoutUpnext(width - ux), width - ux, ux)
+		end
 	else
 		y = stack(empty, y, layoutEmpty(width))
 		y = stackJourney(y, width)
 	end
 	if GF.party.psText and not isCompact and state == "steps" and not list then
 		GF.party:Show()
-		y = stack(GF.party, y, GF.party:GetHeight())
+		y = place("party", GF.party, y, GF.party:GetHeight(), width)
 	else
 		GF.party:Hide()
 	end
 	if GF.xp.psHas and not isCompact and state == "steps" and not list then
 		GF.xp:Show()
-		y = stack(GF.xp, y, GF.xp:GetHeight())
+		y = place("xp", GF.xp, y, GF.xp:GetHeight(), width)
 	else
 		GF.xp:Hide()
 	end
-	local showFoot = state == "steps" or state == "complete" or state == "skippedout"
+	-- A skin's own room under the window's parts (Skin API,
+	-- hooks.guideLayout(parts, width, y)): its answer is the height it takes.
+	local ran, extra = Theme.SkinHookValue("guideLayout", Theme.GuideParts(), width, y)
+	if ran and type(extra) == "number" and extra > 0 then y = y + extra end
+	local showFoot = (state == "steps" or state == "complete" or state == "skippedout") and GF.On("progress")
 	foot:SetShown(showFoot)
 	local stripH = showStrip and TAB_H or 0
 	fit.outer = stripH + NAV_H + (showFoot and PROG_H or 0)
@@ -2509,6 +2621,8 @@ function GF.PaintProgress(animate)
 	W.SetProgress(foot.Line, frac, w, animate)
 	GF.PaintStatus(frac, foot.Pct:GetText())
 	foot.psDone, foot.psTotal = done, total
+	-- A skin's own progress (Skin API, hooks.guideProgress(foot, frac)).
+	Theme.SkinHook("guideProgress", foot, frac)
 end
 
 ---------------------------------------------------------------------------
@@ -2804,6 +2918,8 @@ local function fillUpcoming(E, index)
 			r.Text:SetText(r.psSummary)
 			W.Color(r.Text, warn and "warning" or "textDim")
 			r:SetShown(upcomingOpen())
+			-- The skin in use's touch on the row (Skin API, hooks.guideUpRow(row, view, index)).
+			Theme.SkinHook("guideUpRow", r, v, i)
 		end
 		i = i + 1
 	end
@@ -3395,6 +3511,9 @@ local function fillCard(sameFocus)
 			end
 		end
 		-- The focus: its finished goals folded into "✓ N done", the rest as rows.
+		-- A skin may keep them in place as rows, no line (hooks.guideShows "done").
+		local ranDone, inPlace = Theme.SkinHookValue("guideShows", "done", false)
+		inPlace = ranDone and inPlace == true
 		fold.serial = fold.serial + 1
 		local list = mineBefore
 		for _, goal in ipairs(goalsOf(g)) do list[#list + 1] = goal end
@@ -3404,7 +3523,7 @@ local function fillCard(sameFocus)
 			local gi = goal.index
 			local rec = fold.of[gi]
 			if goal.status == "done" then
-				if not rec and not model.folded[gi] then
+				if not rec and not model.folded[gi] and not inPlace then
 					local last = model.last[gi]
 					if sameFocus and last and last ~= "done" then
 						rec = fold.start(gi)
@@ -3429,7 +3548,7 @@ local function fillCard(sameFocus)
 			if fold.list[i].seen ~= fold.serial then fold.drop(fold.list[i]) end
 		end
 		local done = #doneList
-		if done > 0 or first then
+		if (done > 0 or first) and not inPlace then
 			local l = addLine("done", "check", "success", string.format(L["%d done"], max(done, 1)), doneList, L["Done"], model.doneOpen)
 			for i = 1, fold.n do fold.list[i].grow = nil end
 			if done == 0 then
@@ -3452,7 +3571,7 @@ local function fillCard(sameFocus)
 				addRow(goal, nil, false)
 			elseif k then
 				addRow(goal, nil, false, k)
-			elseif model.doneOpen then
+			elseif model.doneOpen or inPlace then
 				addRow(goal, nil, false)
 			end
 		end
@@ -3530,6 +3649,9 @@ local function fillCard(sameFocus)
 		i = i + 1
 	end
 	local shown = ns.Get("ui.showNotes") and not compact()
+	-- A skin may keep the tip in compact mode (Skin API, hooks.guideShows).
+	local ran, keep = Theme.SkinHookValue("guideShows", "tip", shown and true or false)
+	if ran and keep == true and ns.Get("ui.showNotes") then shown = true end
 	local note = shown and view.note or nil
 	if note == "" then note = nil end
 	-- The step's picture (a file in its pack's addon folder, Guides.lua): one
@@ -3553,7 +3675,7 @@ local function showSteps(show)
 	empty:SetShown(not show)
 end
 
-function GF.Render()
+function SK.render()
 	if not F or not ns.IsLoggedIn() then return end
 	local E, G = Engine(), ns.Guides
 	strip.psHasTabs = GF.TabsOf(E) ~= nil
@@ -3605,6 +3727,9 @@ function GF.Render()
 	state = "steps"
 	local _, f0 = UI.StepGroups(v)
 	local focusChanged = stepChanged or shownFocus ~= f0
+	-- The step is known before the card is drawn: a skin's hooks during the
+	-- layout ask GF.ShownStep() for this step, not the one before it.
+	shownIndex = index
 	local groups, focus = fillCard(not focusChanged)
 	fillAfter(E, index, groups, focus)
 	fillAlong(E)
@@ -3622,6 +3747,13 @@ function GF.Render()
 	-- A class chain's card, the first time it shows: its shine and chime.
 	if F:IsVisible() and not GF.catchingUp and UI.ClassCard then UI.ClassCard.Celebrate() end
 	shownIndex, shownGuide, shownFocus = index, guide.id, focus
+end
+
+-- The window drawn, then the skin in use's touch on the step on screen
+-- (Skin API, hooks.guideRender(view or nil, parts)).
+function GF.Render()
+	SK.render()
+	if F and ns.IsLoggedIn() then Theme.SkinHook("guideRender", state == "steps" and view or nil, Theme.GuideParts()) end
 end
 
 -- The step the window shows (the catch-up's while it goes over the steps).
@@ -3856,6 +3988,8 @@ function GF.ApplyStyle()
 	Theme.KitHeader(person, not clear)
 	strip.Rule:SetShown(not clear)
 	nav.Rule:SetShown(not clear)
+	-- The skin in use's touch on the title (Skin API, hooks.guideTitle).
+	if not clear then Theme.SkinHook("guideTitle", nav, { bar = nav.TitleBar, close = nav.Close, rule = nav.Rule, band = band }) end
 	W.Painter(foot.Line.Track, paintTrack)
 	if GF.here then W.Painter(GF.here.Panel, GF.PaintHerePanel) end
 	for i = 1, #texts do Theme.SetOutline(texts[i], clear) end
@@ -4004,6 +4138,8 @@ local APPLY = {
 	["ui.opacity"] = function() GF.ApplyAlpha(false) end,
 	["ui.bgOpacity"] = function() GF.ApplyStyle() end,
 	["ui.style"] = function() GF.ApplyStyle() end,
+	["guideWindow.tabs"] = function() GF.Layout() end,
+	["guideWindow.progress"] = function() GF.Layout() end,
 	["ui.barShown"] = function() GF.ApplyStyle() end,
 	["ui.backing"] = function() GF.ApplyStyle() end,
 	["ui.locked"] = function() GF.ApplyLock() end,
@@ -4038,6 +4174,11 @@ local APPLY = {
 ---------------------------------------------------------------------------
 
 local skinShown
+-- The skin in use and its variant: a change of either dresses the window again.
+function SK.tag()
+	local id = Theme.SkinId()
+	return id .. "/" .. tostring(Theme.SkinVariant(id))
+end
 
 -- Hearth's tab: framed, gold on the active one (DIRECTION_A_BLIZZARD.md §3);
 -- the game's looks: their kit's tab art.
@@ -4114,7 +4255,7 @@ function GF.ApplySkin()
 	if not F then return end
 	readMetrics()
 	local skin = Theme.SkinKey()
-	skinShown = skin
+	skinShown = SK.tag()
 	F.psGuide = true
 	Theme.Repaint(F)
 	strip:SetHeight(TAB_H)
@@ -4231,7 +4372,7 @@ end
 
 -- A skin chosen while the window shows: its sizes, then a fresh layout.
 Theme.OnChanged(function()
-	if F and skinShown and skinShown ~= Theme.SkinKey() then
+	if F and skinShown and skinShown ~= SK.tag() then
 		GF.ApplySkin()
 		GF.ApplyStyle()
 	end
@@ -4314,6 +4455,8 @@ local function openMenu(button)
 		{ text = L["Report a problem"], icon = "bug", onClick = function() UI.ShowReport() end },
 		{ separator = true },
 	}
+	-- The guides (choose, open, reopen) over the step's own (skip, report).
+	table.insert(items, 3, { separator = true })
 	-- Pin the shown step's quests in the log as along the way, or unpin them (#644).
 	local pins = GF.PinItems(view)
 	for _, it in ipairs(pins) do items[#items + 1] = it end
@@ -4321,7 +4464,7 @@ local function openMenu(button)
 	-- The quest log cleanup (UI/QuestRoom.lua), while it has quests to list.
 	local unneeded = ns.RoutePlan and ns.RoutePlan.Unneeded() or nil
 	if unneeded and #unneeded > 0 then
-		table.insert(items, 5, { text = L["Clean up quest log (%d)"]:format(#unneeded), icon = "cross", onClick = function() UI.ShowQuestRoom() end })
+		table.insert(items, 7, { text = L["Clean up quest log (%d)"]:format(#unneeded), icon = "cross", onClick = function() UI.ShowQuestRoom() end })
 	end
 	for _, it in ipairs({
 		{ text = L["Compact mode"], icon = "compact", checked = compact(), onClick = function() ns.Set("ui.compact", not compact()) end },
@@ -4338,8 +4481,13 @@ local function openMenu(button)
 	}) do items[#items + 1] = it end
 	-- The Recorder's window, while the Recorder addon is loaded.
 	if type(PolestarRecorder_Command) == "function" then
-		table.insert(items, 5, { text = L["Recorder window"], icon = "record", onClick = function() PolestarRecorder_Command("ui") end })
+		table.insert(items, 7, { text = L["Recorder window"], icon = "record", onClick = function() PolestarRecorder_Command("ui") end })
 	end
+	-- The tools (the Recorder, the quest log cleanup) apart from the pins.
+	local tools = ((unneeded and #unneeded > 0) and 1 or 0) + (type(PolestarRecorder_Command) == "function" and 1 or 0)
+	if tools > 0 and #pins > 0 then table.insert(items, 7 + tools, { separator = true }) end
+	-- Close guide with the guides, after Open in new tab (and Reopen).
+	table.insert(items, 3, GF.CloseGuideItem())
 	local reopen = GF.ReopenItem()
 	if reopen then table.insert(items, 3, reopen) end
 	W.ShowMenu(button, items)
@@ -4723,6 +4871,12 @@ local function build()
 	nav.Skip = skip
 	anchorSkip()
 	nav.Title = T(nav, "small", "textDim")
+	-- A click on the guide's title lists the open guides (GF.GuidesMenu).
+	local titleHit = CreateFrame("Button", nil, nav)
+	titleHit:SetAllPoints(nav.Title)
+	titleHit:SetScript("OnClick", function(self) GF.GuidesMenu(self) end)
+	titleHit:SetScript("OnEnter", function() GF.HoverIn() end)
+	nav.Title.Hit = titleHit
 	-- The step's own title and the guide's facts, on the step number.
 	local countHit = CreateFrame("Frame", nil, nav.Steps)
 	countHit:SetAllPoints(nav.Steps.Count)

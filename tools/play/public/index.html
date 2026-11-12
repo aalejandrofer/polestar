@@ -22,6 +22,24 @@
 			<input id="slash-input" name="text" placeholder="/polestar options, /polestar guides, /run Polestar.Set(&quot;ui.scale&quot;, 1.1)" spellcheck="false">
 		</form>
 		<p id="timing" class="timing">Starting the Lua session</p>
+		<section id="walk" class="walk" aria-label="Walk the guide">
+			<div class="walk-bar">
+				<button type="button" id="walk-play" class="primary" title="Walk the guide: a stride toward each goal, then the goal (Space with the screen unfocused)">Walk</button>
+				<button type="button" id="walk-tick" title="One stride or one goal">Step</button>
+				<label>Speed <input id="walk-speed" type="range" min="1" max="10" value="4"></label>
+				<label>Strides <input id="walk-strides" type="number" min="0" max="12" value="3"></label>
+				<label>Events <select id="walk-every"><option value="0">Off</option><option value="4">Every 4 goals</option><option value="6" selected>Every 6</option><option value="10">Every 10</option></select></label>
+				<label class="check"><input type="checkbox" id="walk-xp" checked> XP</label>
+				<label class="check" title="Show the screen at its real 1920x1080 pixels (the page scrolls), so the browser zoom works on it"><input type="checkbox" id="actual-size"> 100%</label>
+				<label class="check" title="The chat lines over the game screen"><input type="checkbox" id="show-chat" checked> Chat</label>
+				<label>Stop at step <input id="walk-stop" type="number" min="1" placeholder="end"></label>
+			</div>
+			<div class="walk-time">
+				<input id="walk-seek" type="range" min="0" max="0" value="0" aria-label="Frames walked">
+				<div id="walk-marks" class="walk-marks" aria-hidden="true"></div>
+			</div>
+			<p id="walk-now" class="walk-now">Open a guide and press Walk: the character walks it goal by goal, levels up, and banners and toasts come up on the way. Drag the bar to look back.</p>
+		</section>
 		<section id="errors" class="errors" hidden aria-live="polite">
 			<header><h2>Lua errors</h2><button type="button" id="errors-clear">Dismiss</button></header>
 			<ol id="error-list"></ol>
@@ -77,6 +95,17 @@
 				<button type="button" id="copy-settings" class="primary">Copy settings</button>
 				<button type="button" id="reset-look">Reset the look</button>
 			</div>
+		</details>
+
+		<details open id="g-layout">
+			<summary>Guide Card</summary>
+			<div class="grid">
+				<span class="label">Start from</span>
+				<div class="chips" id="lab-presets"></div>
+				<span class="label">Skin</span>
+				<div class="chips" id="lab-skin"></div>
+			</div>
+			<div class="grid lab-axes" id="lab-axes"></div>
 		</details>
 
 		<details open id="g-guide">

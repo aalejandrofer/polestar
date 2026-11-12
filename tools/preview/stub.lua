@@ -97,17 +97,19 @@ local function codepoints(s)
 	return out
 end
 
--- Visible text: colour codes out, "||" -> "|".
+-- Visible text: colour codes out, "||" -> "|", an inline texture
+-- (|Tpath:h:w...|t) one private-use character (U+E000) one em wide, as the
+-- client draws it at the text's height.
 function preview.plain(s)
 	s = tostring(s or "")
-	s = s:gsub("||", "\1"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("\1", "|")
+	s = s:gsub("||", "\1"):gsub("|T[^|]*|t", "\238\128\128"):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""):gsub("\1", "|")
 	return s
 end
 
 function preview.width(file, size, s)
 	local m = preview.metrics[file]
 	local w = 0
-	for _, cp in ipairs(codepoints(s)) do w = w + (m.adv[cp] or m.fallback) end
+	for _, cp in ipairs(codepoints(s)) do w = w + (cp == 0xE000 and 1 or m.adv[cp] or m.fallback) end
 	return w * size
 end
 

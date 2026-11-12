@@ -1409,7 +1409,7 @@ fn the_header_menu_picker_new_tab_compact_transparent_lock_destructive_items_ask
 	.remove(0);
 	assert_eq!(
 		out["items"],
-		json!(["Choose guide", "Open in new tab", "Skip this step", "Report a problem", "Compact mode", "Transparent", "Lock window", "Reset guide progress", "Options", "Hide window"])
+		json!(["Choose guide", "Open in new tab", "Close guide", "Skip this step", "Report a problem", "Compact mode", "Transparent", "Lock window", "Reset guide progress", "Options", "Hide window"])
 	);
 	assert_eq!(out["locked"], true);
 	assert_eq!(out["style"], "transparent");
@@ -1443,7 +1443,7 @@ fn the_menu_offers_the_quest_log_cleanup_with_its_count_and_hides_it_when_there_
 		Polestar.RoutePlan.Unneeded = function() return nil end
 		emit({ two = two, before = before, opened = opened, none = none, unsettled = items() })"#)
 	.remove(0);
-	assert_eq!(out["two"][4], "Clean up quest log (2)", "right after Report a problem");
+	assert_eq!(out["two"][5], "Clean up quest log (2)", "right after Report a problem");
 	assert_eq!(out["before"], false);
 	assert_eq!(out["opened"], true, "the entry opens the cleanup window");
 	for key in ["none", "unsettled"] {
@@ -2425,6 +2425,9 @@ fn looking_at_another_step_than_the_live_one_offers_the_way_back_a_skipped_step_
 		uistub.live = 3
 		N.Next:Click()
 		local ahead = { B:IsShown(), B.Text:GetText(), B.Jump.Label:GetText() }
+		-- One line: the link sits after the words, on their row.
+		local p, rel, rp = B.Jump:GetPoint(1)
+		local row = { p, rel == B.Text, rp }
 		B.Jump:Click()
 		local back = lastCall("Goto")
 		uistub.live = 4
@@ -2432,9 +2435,10 @@ fn looking_at_another_step_than_the_live_one_offers_the_way_back_a_skipped_step_
 		uistub.setStep(3)
 		local skipped = { B.Text:GetText(), B.Jump.Label:GetText(), N.Skip:IsEnabled() }
 		B.Jump:Click()
-		emit({ ahead = ahead, back = back, skipped = skipped, unskip = lastCall("Unskip") })"#)
+		emit({ ahead = ahead, row = row, back = back, skipped = skipped, unskip = lastCall("Unskip") })"#)
 	.remove(0);
-	assert_eq!(out["ahead"], json!([true, "Looking ahead. The guide is at step 3.", "Back to step 3"]));
+	assert_eq!(out["ahead"], json!([true, "Looking ahead.", "Go back to step 3"]));
+	assert_eq!(out["row"], json!(["LEFT", true, "LEFT"]), "the link on the words' row");
 	assert_eq!(out["back"], json!(["Goto", 3]));
 	assert_eq!(out["skipped"], json!(["You skipped this step.", "Unskip it", false]));
 	assert_eq!(out["unskip"], json!(["Unskip", 3]));
@@ -2461,7 +2465,7 @@ fn dismiss_closes_the_looking_ahead_banner_for_that_step_and_another_step_brings
 	assert_eq!(out["ahead"], json!([true, true]), "the banner and its Dismiss button");
 	assert_eq!(out["dismissed"], false, "Dismiss closes it");
 	assert_eq!(out["stays"], false, "it stays closed on that step");
-	assert_eq!(out["next"], "Looking ahead. The guide is at step 3.", "the next step has its own banner");
+	assert_eq!(out["next"], "Looking ahead.", "the next step has its own banner");
 }
 
 #[test]

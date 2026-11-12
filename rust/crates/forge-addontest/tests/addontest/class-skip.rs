@@ -78,10 +78,18 @@ end
 "#;
 
 fn run(script: &str) -> Vec<Value> {
+	run_in(script, false)
+}
+
+fn run_in(script: &str, atlas: bool) -> Vec<Value> {
+	let mut addons = vec![Addon::name("Polestar")];
+	if atlas {
+		addons.push(Addon::name("Polestar_Skin_Atlas"));
+	}
 	emitted(&RunAddon {
 		stubs: vec!["stub_world.lua"],
 		before: WORLD.into(),
-		addons: vec![Addon::name("Polestar")],
+		addons,
 		script: [
 			TEST_PACK,
 			TEST_SOURCE,
@@ -223,4 +231,55 @@ fn a_leveling_guide_skipped_to_its_end_still_finishes_as_before() {
 		emit(snap())"#);
 	assert_eq!(out[0]["live"], false, "{}", out[0]);
 	assert_ne!(out[0]["empty"], "The rest of this guide follows from a skipped step", "{}", out[0]);
+}
+
+// A skin may place the class-quest card itself (guidePlace "classCard") and keep it to the chain's first step
+// in the guide (guideShows "classCardLater" false): Atlas shows it once, above the window, not on every step.
+#[test]
+fn a_skin_places_the_class_card_and_keeps_it_to_the_chain_s_first_step() {
+	let out = run(r#"
+		local T = Polestar.Theme
+		local placed = 0
+		T.RegisterSkin("holder", { api = 2, name = "Holder", addon = "Test_Holder", base = "polestar",
+			hooks = { guidePlace = function(name) if name == "classCard" then placed = placed + 1; return true end end } })
+		T.RegisterSkin("once", { api = 2, name = "Once", addon = "Test_Once", base = "polestar",
+			hooks = { guideShows = function(name, shown) if name == "classCardLater" then return false end return shown end } })
+		Polestar.Set("ui.skin", "holder")
+		GF.Render(); flush()
+		local held = snap()
+		held.placed = placed
+		Polestar.Set("ui.skin", "once")
+		GF.Render(); flush()
+		emit(held)
+		emit(snap())"#);
+	assert_eq!(out[0]["step"], 2, "{}", out[0]);
+	assert_eq!(out[0]["card"], 1530, "placed by the skin, the card is still the quest in hand: {}", out[0]);
+	assert!(out[0]["placed"].as_i64().unwrap_or(0) > 0, "the skin was handed the card: {}", out[0]);
+	assert_eq!(out[1]["step"], 2, "{}", out[1]);
+	assert_eq!(out[1]["card"], false, "step 1 carries the chain: no card again on step 2: {}", out[1]);
+	assert_eq!(out[1]["fold"], false, "no card, nothing folded into it: {}", out[1]);
+}
+
+// Atlas J2: the class-quest card is a card above the window with a ×; the × puts it away.
+#[test]
+fn atlas_j2_puts_the_class_card_above_the_window_and_its_x_puts_it_away() {
+	let out = run_in(r#"
+		Polestar.RunCommand("skin atlas j2")
+		-- Step 1 opens the chain: Atlas shows the card there only.
+		E.Goto(1); flush()
+		GF.Render(); flush()
+		local f = CC.Frame()
+		local win = PolestarGuideFrame
+		-- Out of the window's card, on a backing in Atlas's stack over the window (backing > stack > window).
+		local b = f and f:GetParent()
+		local above = f and f:IsVisible() and b ~= f.psHome and b:GetParent() and b:GetParent():GetParent() == win or false
+		local x = f and f.psAtlasX
+		local xShown = x and x:IsVisible() or false
+		if x then x:Click() end
+		flush()
+		emit({ card = CC.shown and CC.shown.quest or false, above = above, x = xShown, after = f and f:IsVisible() or false })"#, true);
+	assert_eq!(out[0]["card"], 1530, "step 1, the chain's first: {}", out[0]);
+	assert_eq!(out[0]["above"], true, "the card sits above the window: {}", out[0]);
+	assert_eq!(out[0]["x"], true, "with its ×: {}", out[0]);
+	assert_eq!(out[0]["after"], false, "the × puts it away: {}", out[0]);
 }

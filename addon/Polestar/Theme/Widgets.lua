@@ -115,11 +115,14 @@ function W.Tex(parent, layer, media, color, sub)
 end
 
 -- A one-pixel rule in the divider wash.
-function W.Divider(parent, vertical, alpha)
+-- `token`: a colour token to paint it in instead of the divider wash
+-- (the menu's group lines read "menuLine", so a skin can keep them).
+function W.Divider(parent, vertical, alpha, token)
 	local t = parent:CreateTexture(nil, "BORDER")
 	t:SetTexture(WHITE)
 	W.Painter(t, function(tex)
-		local r, g, b, a = Theme.Wash("divider")
+		local r, g, b, a
+		if token then r, g, b, a = Theme.Color(token) else r, g, b, a = Theme.Wash("divider") end
 		tex:SetVertexColor(r, g, b, a * (alpha or 1))
 		if vertical then tex:SetWidth(Theme.Pixel(parent)) else tex:SetHeight(Theme.Pixel(parent)) end
 	end)
@@ -1391,7 +1394,7 @@ function W.ShowMenu(anchor, items, opts)
 			nsep = nsep + 1
 			local sep = menu.seps[nsep]
 			if not sep then
-				sep = W.Divider(menu)
+				sep = W.Divider(menu, nil, nil, "menuLine")
 				menu.seps[nsep] = sep
 			end
 			sep:ClearAllPoints()

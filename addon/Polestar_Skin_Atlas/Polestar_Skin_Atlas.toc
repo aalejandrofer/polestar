@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Polestar Skin: Atlas
+## Notes: A calm skin for Polestar's guide window: one surface, a softened class accent, no section lines, the next step numbered.
+## Author: Alejandro
+## Version: 0.3.7
+## Category: Polestar
+## Group: Polestar
+## Dependencies: Polestar
+## LoadOnDemand: 1
+## X-Polestar-Skin: atlas
+
+Atlas.lua
