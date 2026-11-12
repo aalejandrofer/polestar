@@ -3243,7 +3243,7 @@ L["Loot that starts a quest glows on the quest item button; timed quests count d
 L["Hide it all"] = "全部隐藏"
 L["A click on the minimap button hides all of Polestar; another brings it back."] = "点击小地图按钮即可隐藏 Polestar 的全部内容；再点一次即可恢复。"
 L["Browse all steps"] = "浏览全部步骤"
-L["Click the step number to see every step of the guide (thanks TTik3r and aalejandrofer)."] = "点击步骤编号即可查看指南的所有步骤（感谢 TTik3r 和 aalejandrofer）。"
+L["Click the step number to see every step of the guide (thanks TTik3r and ttik3r)."] = "点击步骤编号即可查看指南的所有步骤（感谢 TTik3r 和 ttik3r）。"
 L["Profession guides"] = "专业指南"
 L["Rebuilt on Forever's trainers, and they start where your skill is."] = "按 Forever 的训练师重新制作，并从你当前的技能等级开始。"
 L["All of 0.3.7 in 9 languages, with thanks to our translators."] = "0.3.7 的全部内容支持 9 种语言，感谢我们的译者。"

@@ -63,7 +63,7 @@ local NOTES = {
 				return L["A click on the minimap button hides all of Polestar; another brings it back."]
 			end },
 			{ glyph = "menu", color = "accent", head = L["Browse all steps"], text = function()
-				return L["Click the step number to see every step of the guide (thanks TTik3r and aalejandrofer)."]
+				return L["Click the step number to see every step of the guide (thanks TTik3r and ttik3r)."]
 			end },
 			{ glyph = "icon-craft", color = "accent", head = L["Profession guides"], text = function()
 				return L["Rebuilt on Forever's trainers, and they start where your skill is."]

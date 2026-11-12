@@ -230,7 +230,7 @@ fn it_says_what_changed_in_ten_notes_in_order_and_scrolls_them_within_one_screen
 			{ "head": "New spells", "text": "A level-up card lists what to train; Train All learns it (thanks RikyZ90); Upgrade updates your bars." },
 			{ "head": "Quest helpers", "text": "Loot that starts a quest glows on the quest item button; timed quests count down." },
 			{ "head": "Hide it all", "text": "A click on the minimap button hides all of Polestar; another brings it back." },
-			{ "head": "Browse all steps", "text": "Click the step number to see every step of the guide (thanks TTik3r and aalejandrofer)." },
+			{ "head": "Browse all steps", "text": "Click the step number to see every step of the guide (thanks TTik3r and ttik3r)." },
 			{ "head": "Profession guides", "text": "Rebuilt on Forever's trainers, and they start where your skill is." },
 			{ "head": "Fully translated", "text": "All of 0.3.7 in 9 languages, with thanks to our translators." },
 			{ "head": "Fixes from your reports", "text": "Routes, trainers, dungeons and more. Found something off? Type /polestar report." },
