@@ -2,9 +2,7 @@
 -- (Polestar 0.3.7 and later, Skin API 2). Polestar's own look with:
 --   * the class accent softened toward grey, so a Paladin's pink reads as
 --     a tint and not a highlighter;
---   * no section lines: one surface from the title to the progress;
---   * the next step as a numbered line ("2  Gekak Gyromast · Accept ...")
---     where Polestar writes "Then: <name>".
+--   * no section lines: one surface from the title to the progress.
 
 local ADDON = ...
 local Theme = Polestar and Polestar.Theme
@@ -29,129 +27,6 @@ local function mute(c)
 end
 
 local CLEAR = { 0, 0, 0, 0 }
-
--- The next thing to do after the person on screen: the next open person of
--- this step, else the first of the next step that holds the route.
--- -> name, kind ("npc", "object", "here"), what (its first open goal's words)
-local function nextUp()
-	local ns = Polestar
-	local E, UI = ns.Engine, ns.UI
-	if not (E and E.GetStepView and UI and UI.StepGroups and UI.GroupName) then return nil end
-	local GF = UI.GuideFrame
-	local index = GF and GF.ShownStep and GF.ShownStep() or (E.GetStepIndex and E.GetStepIndex())
-	if type(index) ~= "number" then return nil end
-	local function firstGoal(v, g)
-		for _, gi in ipairs(g.goals or {}) do
-			local goal = v.goals[gi]
-			if goal and goal.status ~= "na" and goal.status ~= "done" and not goal.folded then
-				return UI.PlainGoalText and UI.PlainGoalText(goal) or goal.text
-			end
-		end
-	end
-	local function named(v, g)
-		local name = UI.GroupName(v, g)
-		local what = firstGoal(v, g)
-		-- A field group is named by its first goal already: say it once.
-		if g.kind == "here" or what == name then what = nil end
-		return name, g.kind, what
-	end
-	local v = E.GetStepView(index)
-	if v then
-		local groups, focus = UI.StepGroups(v)
-		for gi = (focus or 0) + 1, #groups do
-			if not groups[gi].done then return named(v, groups[gi]) end
-		end
-	end
-	local count = E.GetStepCount and E.GetStepCount() or 0
-	for s = index + 1, count do
-		local w = E.GetStepView(s)
-		if w and w.status ~= "na" and not w.along and not (UI.StepHidden and UI.StepHidden(s)) then
-			local gs, f = UI.StepGroups(w)
-			local g = gs[f or 1] or gs[1]
-			if g then return named(w, g) end
-			return nil
-		end
-	end
-end
-
--- "Then: Gazrog" becomes a numbered line, the same weight as the step's.
-local function numberAfter(frame)
-	if frame.Rule then frame.Rule:Hide() end
-	local name, kind, what = nextUp()
-	if not name or name == "" then return end
-	local num = "|c" .. Theme.Hex("textMuted") .. "2|r   "
-	local who = "|c" .. Theme.Hex(kind == "npc" and "npc" or kind == "object" and "object" or "text") .. name .. "|r"
-	local tail = what and ("  |c" .. Theme.Hex("textMuted") .. "·|r  |c" .. Theme.Hex("textDim") .. what .. "|r") or ""
-	frame.Text:SetText(num .. who .. tail)
-end
-
--- The step's other persons, one summary line each ("Then: Marshal McBride ·
--- Turn in ..."), become numbered steps of the same weight: the person on
--- screen is 1, the lines under it 2, 3... The Skin API hands over goal rows
--- but not these lines, so they are found as the goal scroll's children
--- Polestar marks psLine (an API gap: a guideLine hook would replace this).
--- A step number in the place of `icon` on `frame` (n nil: the icon back).
--- Pooled frames show other things later, so every call sets it. Polestar
--- paints the icon's texture at every render, so the icon comes back by
--- itself under another skin.
-local function numeral(frame, icon, n)
-	local own = kit.store(frame)
-	if not n then
-		if own.num then own.num:Hide() end
-		return
-	end
-	if not own.num then
-		own.num = frame:CreateFontString(nil, "OVERLAY")
-		Theme.Font(own.num, "label")
-		own.num:SetJustifyH("CENTER")
-	end
-	own.num:ClearAllPoints()
-	own.num:SetPoint("CENTER", icon, "CENTER", 0, 0)
-	own.num:SetText(n)
-	own.num:SetTextColor(Theme.Color(n == 1 and "accent" or "textMuted"))
-	own.num:Show()
-	icon:SetTexture(nil)
-end
-
-local function plain(s) return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
-local function numberLines(parts)
-	local L = Polestar.L or {}
-	local THEN = L["Then:"] or "Then:"
-	local THEN_HERE, HERE = L["Then out here:"] or "Then out here:", L["Out here:"] or "Out here:"
-	local child = parts.goals and (parts.goals.Child or parts.goals:GetScrollChild())
-	if not child then return end
-	local lines = {}
-	for _, l in ipairs({ child:GetChildren() }) do
-		if l.psLine and l:IsShown() and l.Text then lines[#lines + 1] = l end
-	end
-	table.sort(lines, function(a, b) return (a.psAt or 0) < (b.psAt or 0) end)
-	local n = 1
-	for _, l in ipairs(lines) do
-		numeral(l, l.Icon, nil)
-		local text = l.Text:GetText() or ""
-		local bare = plain(text)
-		local rest
-		if bare:sub(1, #THEN) == THEN then
-			rest = text:gsub("^(.-)" .. THEN:gsub("%p", "%%%0") .. "%s*", "%1", 1)
-		elseif bare:sub(1, #THEN_HERE) == THEN_HERE then
-			rest = text:gsub(THEN_HERE:gsub("%p", "%%%0"), HERE, 1)
-		elseif bare:sub(1, #HERE) == HERE then
-			rest = text
-		end
-		if rest then
-			n = n + 1
-			l.Text:SetText(rest)
-			numeral(l, l.Icon, nil) -- no step numbers inside a step
-		end
-	end
-	-- The person on screen is step 1 once something follows it.
-	local person = parts.person
-	-- Not where the title has no icon column (the J header hides the icon and
-	-- puts the title in its place): the 1 would sit under the title's first letter.
-	if person and person.Icon then
-		numeral(person, person.Icon, nil)
-	end
-end
 
 -- The card on top of the window: the parts Atlas takes out of the window
 -- (guidePlace: While you're here) sit there, on the window's own ground and
@@ -184,7 +59,6 @@ end
 
 -- Lay the parts taken at this layout under each other on the card.
 local TOP_PAD = 2
-local stackOptional -- the Optional and hint card (below), stacked after the taken parts
 local function layoutTop(parts)
 	local window = parts.window
 	if not window then return end
@@ -198,7 +72,6 @@ local function layoutTop(parts)
 		y = y + (f:GetHeight() or 0)
 		taken[i] = nil
 	end
-	y = stackOptional(top, window, y)
 	if y > TOP_PAD then
 		dressTop(top, window)
 		top:SetHeight(y + TOP_PAD)
@@ -206,9 +79,7 @@ local function layoutTop(parts)
 	else
 		top:Hide()
 	end
-	-- The heads-up card sits on this card: put it on again at the new height.
-	local CT = Polestar.UI and Polestar.UI.ClassToast
-	if CT and CT.current and CT.Place then CT.Place(false) end
+
 end
 
 -- While you're here on the card: the window's ground, not a tinted slab.
@@ -253,8 +124,8 @@ end
 -- below the window (never in the rail) and collapsed until opened (its
 -- preset), the class quest's full heads-up above the window in every mode
 -- (Polestar's own) and the training reminder as a card there too, with a
--- close. Out of compact the step sits on a rail: the last step faded over the
--- title, done goals in place, counts in a column, Up next on the rail. Its
+-- close. Out of compact the rail starts at the current step and connects to
+-- Up next. Done goals stay in place and counts sit in a column. Its
 -- compact mode (J2c) is Polestar's own, with the tip kept as the strip at the
 -- card's foot.
 ---------------------------------------------------------------------------
@@ -266,7 +137,7 @@ local function compact() return Polestar.Get and Polestar.Get("ui.compact") and 
 -- J2: the step's optional goals and notes in a card of Atlas's own, on the
 -- top card above the window, not among the goals. guideTakes leaves them out
 -- of the step card; guideRender fills the card from the step (view.goals
--- still holds them); layoutTop stacks it. A row has its glyph, its line, its
+-- still holds them); layoutStack stacks it. A row has its glyph, its line, its
 -- count and Skip (Undo once skipped); the notes are lines in the quest colour.
 ---------------------------------------------------------------------------
 local OPT_ROW, OPT_PAD, OPT_LABEL = 18, 10, 14
@@ -318,7 +189,7 @@ local function optRow(c, i)
 	return r
 end
 
--- Fill from the step on screen (guideRender); the layout comes with layoutTop.
+-- Fill from the step on screen (guideRender); the layout comes with layoutStack.
 local function fillOptional(view, parts)
 	optGoals, optNotes, optStep = {}, {}, view and view.index or nil
 	local sig = {}
@@ -345,13 +216,13 @@ local function fillOptional(view, parts)
 	end
 end
 
-stackOptional = function(top, window, y)
-	local c = optCard(top)
+local function layoutOptional(stack, window)
+	local c = optCard(stack)
 	local UI, E = Polestar.UI, Polestar.Engine
 	local n, m = #optGoals, #optNotes
 	if n + m == 0 or not isJ2() then
 		c:Hide()
-		return y
+		return nil
 	end
 	local width = window:GetWidth() or 0
 	local lh = 4
@@ -420,11 +291,7 @@ stackOptional = function(top, window, y)
 	for i = n + 1, #c.Rows do c.Rows[i]:Hide() end
 	lh = lh + 4
 	c:SetHeight(lh)
-	c:ClearAllPoints()
-	c:SetPoint("TOPLEFT", top, "TOPLEFT", 0, -y)
-	c:SetPoint("TOPRIGHT", top, "TOPRIGHT", 0, -y)
-	c:Show()
-	return y + lh
+	return c
 end
 
 -- The tip of the step being filled (the render's own index) -> its text, or
@@ -577,7 +444,7 @@ end
 
 -- The bar fills as the guide's progress: a soft wash in the accent, a 2px
 -- accent edge along its foot.
-local function navFill(frac)
+local function navFill()
 	local parts = Theme.GuideParts()
 	local nav = parts and parts.nav
 	if not nav then return end
@@ -593,12 +460,10 @@ local function navFill(frac)
 		own.edge = nav:CreateTexture(nil, "ARTWORK")
 		own.edge:SetTexture(Theme.Media("white"))
 	end
-	-- The bar reads like the header's "1 / 80": the step in view over the
-	-- guide's steps, not Polestar's own done-steps progress.
-	local UI, E = Polestar.UI, Polestar.Engine
-	local at = E and E.GetStepIndex and E.GetStepIndex()
-	local total = UI and UI.StepTotal and UI.StepTotal() or 0
-	if at and total > 0 then frac = (UI.StepNo and UI.StepNo(at) or at) / total end
+	-- The counter already accounts for the step in view and catch-up.
+	local at, total = (nav.Steps.Count:GetText() or ""):match("^(%d+) / (%d+)$")
+	at, total = tonumber(at), tonumber(total)
+	local frac = total and total > 0 and at / total or 0
 	local w = math.max(0.01, (nav:GetWidth() or 0) * math.min(1, math.max(0, frac or 0)))
 	local r, g, b = Theme.Accent()
 	own.fill:ClearAllPoints()
@@ -639,8 +504,8 @@ end
 
 ---------------------------------------------------------------------------
 -- J2 on a timeline (guide-layouts preset J2): the step sits on a rail
--- between the last step (a green node) and the next three (hollow nodes,
--- fainter ahead); the card is set in from the rail (guideInset); done goals
+-- that starts at the current step and connects to the next three (hollow
+-- nodes, fainter ahead); the card is set in from the rail (guideInset); done goals
 -- stay in place (guideShows "done"), the counts in a column on the right;
 -- the bar holds the guide's emblem and title on the left, the step count
 -- and the menu on the right (Skip is in the menu); While you're here and the training
@@ -650,7 +515,7 @@ end
 
 local function tl() return isJ2() and not compact() end
 local CARD_X, UP_X, RAIL = 22, 13, 15 -- the card's and Up next's insets, the rail's x (window)
-local PREV_H = 24 -- the last step's row over the step's title
+local TITLE_PAD = 10
 local TITLE_UP = 1 -- the step title over the goal lines, in px
 local FADE = { 0.9, 0.65, 0.4 } -- the steps ahead, fainter further on
 
@@ -687,18 +552,6 @@ local function stepLine(v)
 	return text, place, first and first.t or "note"
 end
 
--- The step before the one on screen that the route holds -> index, view | nil
-local function prevStep()
-	local E, UI = Polestar.Engine, Polestar.UI
-	local GF = UI and UI.GuideFrame
-	local index = GF and GF.ShownStep and GF.ShownStep()
-	if not (E and E.GetStepView and type(index) == "number") then return nil end
-	for s = index - 1, 1, -1 do
-		local v = E.GetStepView(s)
-		if v and v.status ~= "na" and not v.along and not (UI.StepHidden and UI.StepHidden(s)) then return s, v end
-	end
-end
-
 -- A node: a disc, with a ring of the ground round it (the current one) or a
 -- hollow middle (the steps ahead).
 local function node(own, key, parent)
@@ -721,10 +574,7 @@ local function paintNode(n, kind, alpha)
 	n.ring:SetVertexColor(bg[1], bg[2], bg[3], kind == "cur" and 1 or 0)
 	n.disc:SetSize(size, size)
 	n.hole:SetSize(size - 2, size - 2)
-	if kind == "past" then
-		n.disc:SetVertexColor(0.42, 0.85, 0.6, alpha)
-		n.hole:SetVertexColor(0, 0, 0, 0)
-	elseif kind == "cur" then
+	if kind == "cur" then
 		local r, g, b = Theme.Accent()
 		n.disc:SetVertexColor(r, g, b, 1)
 		n.hole:SetVertexColor(0, 0, 0, 0)
@@ -747,62 +597,6 @@ local function hideNode(n)
 	if n then n.ring:Hide(); n.disc:Hide(); n.hole:Hide() end
 end
 
--- The last step's row, drawn in the header's top (guidePerson gives it room).
-local function prevRow(person)
-	local own = kit.store(person)
-	if not own.prev then
-		local f = CreateFrame("Button", nil, person)
-		f:SetHeight(PREV_H)
-		f.Num = f:CreateFontString(nil, "OVERLAY")
-		Theme.Font(f.Num, "small")
-		f.Num:SetJustifyH("RIGHT")
-		f.Num:SetWidth(22)
-		f.Icon = f:CreateTexture(nil, "ARTWORK")
-		f.Icon:SetSize(13, 13)
-		f.Text = f:CreateFontString(nil, "OVERLAY")
-		Theme.Font(f.Text, "label")
-		f.Text:SetWordWrap(false)
-		f.Text:SetJustifyH("LEFT")
-		f:SetScript("OnClick", function(self)
-			local E = Polestar.Engine
-			if self.psIndex and E and E.Goto then E.Goto(self.psIndex) end
-		end)
-		own.prev = f
-	end
-	return own.prev
-end
-
-local function fillPrev(person, width)
-	local f = prevRow(person)
-	local index, v = prevStep()
-	if not (tl() and v) then
-		f:Hide()
-		return 0
-	end
-	local UI = Polestar.UI
-	local text, _, verb = stepLine(v)
-	f.psIndex = index
-	f:ClearAllPoints()
-	f:SetPoint("TOPLEFT", person, "TOPLEFT", -CARD_X, 0)
-	f:SetPoint("TOPRIGHT", person, "TOPRIGHT", 0, 0)
-	f.Num:ClearAllPoints()
-	f.Num:SetPoint("RIGHT", f, "LEFT", UP_X + 26, 0)
-	f.Num:SetText(UI.StepNo and UI.StepNo(index) or index)
-	f.Num:SetTextColor(Theme.Color("textMuted"))
-	f.Icon:ClearAllPoints()
-	f.Icon:SetPoint("CENTER", f, "LEFT", UP_X + 43.5, 0)
-	f.Icon:SetTexture(Theme.VerbIcon(verb))
-	f.Icon:SetVertexColor(Theme.Color("textMuted"))
-	f.Text:ClearAllPoints()
-	f.Text:SetPoint("LEFT", f, "LEFT", UP_X + 59, 0)
-	f.Text:SetPoint("RIGHT", f, "RIGHT", -14, 0)
-	f.Text:SetText(text)
-	f.Text:SetTextColor(Theme.Color("textDim"))
-	f:SetAlpha(0.6)
-	f:Show()
-	return PREV_H
-end
-
 -- The rail and its nodes, on a layer of Atlas's own over the window.
 local function rail(parts)
 	local window, person, upnext = parts.window, parts.person, parts.upnext
@@ -815,28 +609,17 @@ local function rail(parts)
 	end
 	local layer = own.tl
 	layer:SetFrameLevel(window:GetFrameLevel() + 8)
-	local prev = person and kit.store(person).prev
 	local onStep = tl() and person and person:IsShown() and person:GetParent() and person:GetParent():IsShown()
 	if not onStep then
 		layer:Hide()
 		return
 	end
 	layer:Show()
-	local top, bottom
-	local pn = node(layer, "past", layer)
-	if prev and prev:IsShown() then
-		paintNode(pn, "past", 0.6)
-		placeNode(pn, prev, "LEFT", RAIL, 0)
-		top = pn.disc
-	else
-		hideNode(pn)
-	end
 	local cn = node(layer, "cur", layer)
 	paintNode(cn, "cur", 1)
-	local nameY = -((prev and prev:IsShown() and PREV_H or 0) + 10 + person.Name:GetStringHeight() / 2)
+	local nameY = -(TITLE_PAD + person.Name:GetStringHeight() / 2)
 	placeNode(cn, person, "TOPLEFT", RAIL - CARD_X, nameY)
-	top = top or cn.disc
-	bottom = cn.disc
+	local top, bottom = cn.disc, cn.disc
 	local rows = {}
 	if upnext and upnext:IsShown() then
 		for _, r in ipairs({ upnext:GetChildren() }) do
@@ -1030,13 +813,9 @@ local function navJ2(parts)
 	nav.Skip:Hide()
 	local path, size, flags = probe("note")
 	nav.Steps.Count:SetFont(path, size + 2, flags)
-	-- Measured at the longest the count gets ("100 / 100"): the text may be
-	-- set after this runs, and a width from "5 / 80" cuts "49 / 80" to "49 /...".
+	-- Measure the full counter in Atlas's font, even if it was clipped before.
 	local Count = nav.Steps.Count
-	local text = Count:GetText()
-	Count:SetText("000 / 000")
-	local cw = math.max(math.floor(Count:GetStringWidth() + 0.5), 40)
-	Count:SetText(text)
+	local cw = math.max(40, math.ceil(Count:GetUnboundedStringWidth()) + 1)
 	Count:SetWidth(cw)
 	nav.Steps:SetWidth(24 + cw + 24)
 	nav.Steps:ClearAllPoints()
@@ -1243,6 +1022,8 @@ local function layoutStack(parts)
 	local list = {}
 	if slots.class then list[#list + 1] = slots.class end
 	if slots.here then list[#list + 1] = slots.here end
+	local optional = layoutOptional(stack, window)
+	if optional then list[#list + 1] = optional end
 	if slots.train then list[#list + 1] = slots.train end
 	slots.class, slots.here, slots.train = nil, nil, nil
 	local width = window:GetWidth() or 300
@@ -1311,7 +1092,6 @@ local function headerBack(person)
 	Theme.Font(person.Where, "small")
 	person.Where:SetTextColor(Theme.Color("textDim"))
 	if person.Icon then person.Icon:SetAlpha(1) end
-	if own.prev then own.prev:Hide() end
 end
 
 local function jHeader(person, width, h)
@@ -1340,10 +1120,10 @@ local function jHeader(person, width, h)
 		person.Name:SetFont(path, (size or 12) + 1, flags)
 	end
 	person.Name:SetWordWrap(false)
-	if person.Icon then person.Icon:SetAlpha(0); numeral(person, person.Icon, nil) end
+	if person.Icon then person.Icon:SetAlpha(0) end
 	person.Level:Hide()
 	local pad = tl() and 11 or 14
-	local top = fillPrev(person, width) + 10
+	local top = TITLE_PAD
 	local whereW = 0
 	if person.Where:IsShown() then
 		whereW = math.min(person.Where:GetUnboundedStringWidth() + 1, math.floor(width * 0.45))
@@ -1439,7 +1219,7 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 		menuLine = "#ffffff1f",
 	},
 	variants = {
-		{ id = "atlas", name = "Atlas", desc = "One bar that fills as you go, with the steps on a rail: the last step faded above the title, done goals kept in place, the counts in a column, the tip as a strip at the card's foot and Up next on the rail. The Journey is a card below the window, collapsed. Training and the class quest come up as cards above the window. Compact mode keeps the tip strip.",
+		{ id = "atlas", name = "Atlas", desc = "One bar that fills as you go, with the current and upcoming steps on a rail, done goals kept in place, the counts in a column, the tip as a strip at the card's foot and Up next on the rail. The Journey is a card below the window, collapsed. Training and the class quest come up as cards above the window. Compact mode keeps the tip strip.",
 			tokens = { accent = "#e6ba66" },
 			preset = { ["guideWindow.tabs"] = false, ["guideWindow.progress"] = false, ["nav.journeyOpen"] = false, ["ui.upcoming"] = 3, ["ui.upcomingOpen"] = true } },
 		{ id = "brass", name = "Muted brass", desc = "Warm dark ground, a bronze edge, brass on the bar and the progress.",
@@ -1465,15 +1245,12 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 				if parts.bar then parts.bar:Hide() end
 			end
 		end,
-		guideProgress = function(foot, frac) navFill(frac) end,
+		guideProgress = navFill,
 		guidePlace = function(name, frame, width, height)
-			if name == "after" then
-				-- J2's rail shows the next step already.
-				if tl() then
-					frame:Hide()
-					return true
-				end
-				numberAfter(frame)
+			-- The timeline already shows the next step.
+			if name == "after" and tl() then
+				frame:Hide()
+				return true
 			end
 			if name == "upnext" then
 				timeline(frame)
@@ -1571,6 +1348,8 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 		guideLayout = function(parts, width, y)
 			layoutTop(parts)
 			layoutStack(parts)
+			local CT = Polestar.UI and Polestar.UI.ClassToast
+			if CT and CT.current and CT.Place then CT.Place(false) end
 			layoutBottom(parts)
 			navJ2(parts)
 			altBeside(parts)
@@ -1596,7 +1375,6 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 			if top and top:IsShown() then return top end
 		end,
 		guideRender = function(view, parts)
-			if view then numberLines(parts) end
 			jPerson(parts)
 			-- The render shows Skip again after the layout: J2 keeps it in the menu.
 			if isJ2() and parts.nav then parts.nav.Skip:Hide() end

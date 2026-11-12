@@ -2890,7 +2890,7 @@ local function navigatorFor(guide, index)
 		nav.Title:SetPoint("LEFT", nav, "LEFT", PAD, 0)
 	end
 	if GF.catchingUp == "guides" then return end
-	local cw = max(floor(nav.Steps.Count:GetStringWidth() + 0.5), 40)
+	local cw = max(math.ceil(nav.Steps.Count:GetUnboundedStringWidth()) + 1, 40)
 	nav.Steps.Count:SetWidth(cw)
 	nav.Steps:SetWidth(24 + cw + 24)
 end
