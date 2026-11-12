@@ -1121,6 +1121,10 @@ local function layoutStack(parts)
 	else
 		stack:Hide()
 	end
+	-- The heads-up card sits on the stack (guideAnchor): put it on again, as
+	-- the stack may have come, gone or changed height since it was placed.
+	local CT = Polestar.UI and Polestar.UI.ClassToast
+	if CT and CT.current and CT.Place then CT.Place(false) end
 end
 
 -- While you're here's label in caps, as the other cards'.

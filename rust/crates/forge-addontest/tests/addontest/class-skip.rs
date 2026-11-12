@@ -283,3 +283,32 @@ fn atlas_j2_puts_the_class_card_above_the_window_and_its_x_puts_it_away() {
 	assert_eq!(out[0]["x"], true, "with its ×: {}", out[0]);
 	assert_eq!(out[0]["after"], false, "the × puts it away: {}", out[0]);
 }
+
+// Atlas J2: a heads-up shown while no card is stacked sits on the window's top; when a card joins the stack
+// afterwards, the heads-up moves onto the stack, never left under it.
+#[test]
+fn atlas_j2_heads_up_moves_onto_the_stack_when_a_card_joins_it() {
+	let out = run_in(r#"
+		Polestar.RunCommand("skin atlas j2")
+		local CT = Polestar.UI.ClassToast
+		local win = PolestarGuideFrame
+		local function on()
+			local p, rel = CT.frame:GetPoint(1)
+			if rel == win then return "window" end
+			if rel and rel:GetParent() == win then return "stack" end
+			return tostring(rel)
+		end
+		-- Step 2: no class card, nothing stacked.
+		E.Goto(2); flush()
+		GF.Render(); GF.Layout(); flush()
+		CT.ShowCard({ head = "CLASS QUEST", title = "A test", giver = "Someone", act = { label = "Got it", run = CT.Hide } })
+		flush()
+		local before = on()
+		-- Step 1 opens the chain: its card joins the stack.
+		E.Goto(1); flush()
+		GF.Render(); GF.Layout(); flush()
+		emit({ before = before, after = on(), card = CC.Frame() and CC.Frame():IsVisible() or false })"#, true);
+	assert_eq!(out[0]["before"], "window", "nothing stacked: on the window: {}", out[0]);
+	assert_eq!(out[0]["card"], true, "the class card is stacked: {}", out[0]);
+	assert_eq!(out[0]["after"], "stack", "the heads-up moved onto the stack: {}", out[0]);
+}
