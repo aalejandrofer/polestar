@@ -28,7 +28,7 @@ Theme.API_VERSION = 2
 -- (guidePerson), a part set in from the left (guideInset), an Up next row
 -- (guideUpRow) and the class quest heads-up (card).
 local HOOKS = { guideTitle = true, guideRow = true, guideLayout = true, guideRender = true, guideProgress = true,
-	guideAnchor = true, guidePlace = true, guideShows = true, guidePerson = true, guideInset = true, guideUpRow = true,
+	guideAnchor = true, guidePlace = true, guideShows = true, guideTakes = true, guidePerson = true, guideInset = true, guideUpRow = true,
 	card = true }
 
 local SKINS, FAILED, ORDER = {}, {}, {}

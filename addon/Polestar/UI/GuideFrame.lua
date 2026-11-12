@@ -164,6 +164,14 @@ local function isTarget(p, t)
 	return t.map == p.map and abs((t.x or -1) - p.x) < 0.05 and abs((t.y or -1) - p.y) < 0.05
 end
 
+-- A guide waypoint identifies the goal even when several objectives share a spot.
+function GF.GoalTarget(goal, target)
+	if target and target.stepIndex and target.goalIndex then
+		return target.stepIndex == shownIndex and target.goalIndex == goal.index
+	end
+	return isTarget(goal, target)
+end
+
 local function tooltipAnchor()
 	local x = F:GetCenter()
 	local sw = UIParent:GetWidth()
@@ -263,6 +271,7 @@ local function pointAt(p, label)
 		GF.UpdateTargets()
 	end
 end
+GF.PointAt = pointAt
 
 ---------------------------------------------------------------------------
 -- Goal rows
@@ -644,7 +653,7 @@ local function measureRow(r, width)
 		r.Alt:SetPoint("TOPRIGHT", r, "TOPRIGHT", -(right - 4), -2 - ROW_PAD)
 		right = right + 20
 	end
-	local tw = max(40, width - TEXT_X - right)
+	local tw = max(40, width - TEXT_X - right - (r.psLevelWidth or 0))
 	r.Text:SetWidth(tw)
 	UI.FitCounts(r.Text)
 	local h = 4 + r.Text:GetStringHeight()
@@ -825,7 +834,7 @@ do
 		local content = contentHeight()
 		local limit = max(CARD.minView, fit.room)
 		local viewH = min(content, limit)
-		if fold.n > 0 and goals.psWhole then
+		if fit.room ~= math.huge and fold.n > 0 and goals.psWhole then
 			viewH = min(content, goals.psViewH)
 		else
 			goals.psWhole = content > limit + 0.5
@@ -1140,7 +1149,6 @@ local function paintPerson(group)
 	-- The arrow on this person marks the header; a field group's goals carry
 	-- their own marks, except the "Go to" the header stands for.
 	person.psPerson = kind ~= "here"
-	person.Mark:SetShown(personMarked(targetOf()))
 end
 
 local function personEnter(self)
@@ -1930,7 +1938,9 @@ function GF.LayoutBanner(width)
 		placeLink(banner.Jump, n.kind == "old" and L["How to update"] or L["Update"], 0, -4)
 		banner.Close:SetShown(n.closable)
 	end
-	local h = floor(9 + banner.Text:GetStringHeight() + 4 + 18 + 9 + 0.5)
+	-- Reserve a row below the message only when it contains an action.
+	local actionHeight = (banner.Jump:IsShown() or banner.Later:IsShown()) and 22 or 0
+	local h = floor(9 + banner.Text:GetStringHeight() + actionHeight + 9 + 0.5)
 	banner:SetHeight(h)
 	return h
 end
@@ -2243,29 +2253,36 @@ end
 function GF.LayoutHere(width)
 	local here = GF.here
 	local hb = here.Body
+	local _, dense = Theme.SkinHookValue("card", here, "hereCompact", {})
 	local top = 3 + 6
 	here.Label:ClearAllPoints()
 	here.Label:SetPoint("TOPLEFT", hb, "TOPLEFT", PAD, -top)
-	local y = top + floor(here.Label:GetStringHeight() + 0.5) + ROW_PAD
+	local y = top + floor(here.Label:GetStringHeight() + 0.5) + ROW_PAD + (dense and 3 or 0)
 	for _, r in ipairs(here.Rows) do
 		if r:IsShown() then
+			Theme.Font(r.Text, dense and "small" or "goal")
+			r.Text:SetWordWrap(not dense)
+			r.Text:SetMaxLines(dense and 1 or 0)
+			if r.psView then r.Sub:SetShown(not dense and not compact()) end
+			local inset = dense and 3 or 8
 			local closeW = r.Close:GetWidth()
 			local right = PAD - 4 + closeW + 4 + floor(r.Dist:GetStringWidth() + 1) + 8
-			r.Icon:ClearAllPoints()
-			r.Icon:SetPoint("CENTER", r, "TOPLEFT", PAD + ICON / 2, -16)
-			r.Close:ClearAllPoints()
-			r.Close:SetPoint("CENTER", r, "TOPRIGHT", -(PAD - 4 + closeW / 2), -16)
-			r.Dist:ClearAllPoints()
-			r.Dist:SetPoint("RIGHT", r.Close, "LEFT", -4, 0)
 			r.Text:ClearAllPoints()
-			r.Text:SetPoint("TOPLEFT", r, "TOPLEFT", TEXT_X, -8)
+			r.Text:SetPoint("TOPLEFT", r, "TOPLEFT", TEXT_X, -inset)
 			local tw = max(40, width - TEXT_X - right)
 			r.Text:SetWidth(tw)
 			UI.FitCounts(r.Text)
+			local center = dense and (inset + r.Text:GetStringHeight() / 2) or 16
+			r.Icon:ClearAllPoints()
+			r.Icon:SetPoint("CENTER", r, "TOPLEFT", PAD + ICON / 2, -center)
+			r.Close:ClearAllPoints()
+			r.Close:SetPoint("CENTER", r, "TOPRIGHT", -(PAD - 4 + closeW / 2), -center)
+			r.Dist:ClearAllPoints()
+			r.Dist:SetPoint("RIGHT", r.Close, "LEFT", -4, 0)
 			r.Sub:ClearAllPoints()
 			r.Sub:SetPoint("TOPLEFT", r.Text, "BOTTOMLEFT", 0, -2)
 			r.Sub:SetWidth(tw)
-			local h = 8 + max(16, floor(r.Text:GetStringHeight() + 0.5)) + 4
+			local h = inset + max(16, floor(r.Text:GetStringHeight() + 0.5)) + 4
 			if r.Sub:IsShown() then h = h + 2 + floor(r.Sub:GetStringHeight() + 0.5) end
 			r:ClearAllPoints()
 			r:SetPoint("TOPLEFT", hb, "TOPLEFT", 0, -y)
@@ -2585,7 +2602,9 @@ function GF.Layout()
 		-- area gives up the difference and scrolls.
 		fit.h = y - fit.from
 		fit.from = nil
-		fit.room = min(capHeight(), fit.limit or math.huge) - (fit.outer + y - content)
+		local _, scroll = Theme.SkinHookValue("guideShows", "goalScroll", true)
+		fit.room = scroll == false and math.huge
+			or min(capHeight(), fit.limit or math.huge) - (fit.outer + y - content)
 		fitGoals()
 	else
 		sizeWindow(y)
@@ -2890,7 +2909,7 @@ local function navigatorFor(guide, index)
 		nav.Title:SetPoint("LEFT", nav, "LEFT", PAD, 0)
 	end
 	if GF.catchingUp == "guides" then return end
-	local cw = max(floor(nav.Steps.Count:GetStringWidth() + 0.5), 40)
+	local cw = max(math.ceil(nav.Steps.Count:GetUnboundedStringWidth()) + 1, 40)
 	nav.Steps.Count:SetWidth(cw)
 	nav.Steps:SetWidth(24 + cw + 24)
 end
@@ -3104,6 +3123,7 @@ function GF.FillHere(E)
 	local fresh = here.psKey == nil
 	local wasShown = here:IsShown()
 	here.psKey = table.concat(keys, " ")
+	GF.UpdateHereTarget(targetOf())
 	here:Show()
 	if fresh and F:IsVisible() and not GF.catchingUp then
 		Anim.To(body, "alpha", wasShown and body:GetAlpha() or 0, 1, Anim.BASE, "out")
@@ -3195,7 +3215,9 @@ local function shownGoals(v, group)
 	local list, others = {}, 0
 	for _, gi in ipairs(group.goals or {}) do
 		local goal = v.goals[gi]
-		if goal and goal.status ~= "na" and not goal.folded then
+		local ran, taken
+		if goal then ran, taken = Theme.SkinHookValue("guideTakes", goal) end
+		if goal and goal.status ~= "na" and not goal.folded and not (ran and taken == true) then
 			list[#list + 1] = UI.ReadingGoal(v, goal)
 			if not goal.header then others = others + 1 end
 		end
@@ -3355,7 +3377,6 @@ local function fillCard(sameFocus)
 	local classHex = CC and CC.Fill(guide, view.index, view) or nil
 	-- A class quest's accept reads inside the class card (UI/ClassCard.lua).
 	local classFold = CC and guide and CC.Fold(guide, view)
-	local t = targetOf()
 	local n, m = 0, 0
 	area.n = 0
 	-- A group line ("Dungeon: Dire Maul") reads once, on the first open
@@ -3385,7 +3406,6 @@ local function fillCard(sameFocus)
 		if escort then escortSaid = true end
 		if finder then finderSaid = true end
 		if goal.quest and goal.oi and goal.status ~= "skipped" then missingSaid[goal.quest] = true end
-		r.Mark:SetShown(goal.status ~= "done" and goal.status ~= "skipped" and isTarget(goal, t) and not person.Mark:IsShown())
 		r.psFold = rec
 		if rec then
 			rec.row = r
@@ -3663,6 +3683,7 @@ local function fillCard(sameFocus)
 	card.Tip.Text:SetText(note or (pic and L["Picture of this spot"]) or "")
 	card.Tip:SetShown(note ~= nil or pic ~= nil)
 	W.SetIcon(card.Tip.Toggle, tipOpen and "chevron-up" or "chevron-down")
+	GF.PaintTargetMarks(targetOf())
 	return groups, focus
 end
 
@@ -3800,16 +3821,35 @@ function GF.TimerTick()
 	followCurrent(false)
 end
 
+function GF.UpdateHereTarget(t)
+	for _, r in ipairs(GF.here.Rows) do
+		local v = r.psView
+		local match = t and v and t.stepIndex == v.step and t.goalIndex == v.index
+		r.Mark:SetShown(match and true or false)
+	end
+end
+
+-- Prefer the visible objective named by the waypoint over a heading at
+-- the same coordinates. Use the heading for a stop without a visible row.
+function GF.PaintTargetMarks(target)
+	local heading = personMarked(target)
+	local exact = target and target.stepIndex and target.goalIndex
+	local marked = false
+	for _, row in ipairs(rows) do
+		local goal = row.psGoal
+		local matches = not marked and row:IsShown() and goal and goal.status ~= "done"
+			and goal.status ~= "skipped" and (exact or not heading) and GF.GoalTarget(goal, target)
+		row.Mark:SetShown(matches and true or false)
+		if matches then marked = true end
+	end
+	person.Mark:SetShown(heading and not marked)
+end
+
 function GF.UpdateTargets()
 	if not F or state ~= "steps" or not focusGroup then return end
 	local t = targetOf()
-	person.Mark:SetShown(personMarked(t))
-	for i = 1, #rows do
-		local r = rows[i]
-		if r:IsShown() and r.psGoal then
-			r.Mark:SetShown(r.psGoal.status ~= "done" and r.psGoal.status ~= "skipped" and isTarget(r.psGoal, t) and not person.Mark:IsShown())
-		end
-	end
+	GF.UpdateHereTarget(t)
+	GF.PaintTargetMarks(t)
 end
 
 function GF.TabsOf(E) return tabsOf(E) end
@@ -4644,6 +4684,13 @@ function GF.HereRow(i)
 	r.psAt = i
 	r:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	W.Hover(r)
+	r.Mark = r:CreateTexture(nil, "ARTWORK")
+	r.Mark:SetTexture(Theme.Media("white"))
+	r.Mark:SetWidth(2)
+	r.Mark:SetPoint("TOPLEFT", r, "TOPLEFT", PAD - 5, -3)
+	r.Mark:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", PAD - 5, 3)
+	W.Color(r.Mark, "accent")
+	r.Mark:Hide()
 	r.Icon = r:CreateTexture(nil, "ARTWORK")
 	r.Icon:SetSize(ICON, ICON)
 	W.Color(r.Icon, "accent")

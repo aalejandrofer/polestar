@@ -2,9 +2,7 @@
 -- (Polestar 0.3.7 and later, Skin API 2). Polestar's own look with:
 --   * the class accent softened toward grey, so a Paladin's pink reads as
 --     a tint and not a highlighter;
---   * no section lines: one surface from the title to the progress;
---   * the next step as a numbered line ("2  Gekak Gyromast · Accept ...")
---     where Polestar writes "Then: <name>".
+--   * no section lines: one surface from the title to the progress.
 
 local ADDON = ...
 local Theme = Polestar and Polestar.Theme
@@ -29,125 +27,6 @@ local function mute(c)
 end
 
 local CLEAR = { 0, 0, 0, 0 }
-
--- The next thing to do after the person on screen: the next open person of
--- this step, else the first of the next step that holds the route.
--- -> name, kind ("npc", "object", "here"), what (its first open goal's words)
-local function nextUp()
-	local ns = Polestar
-	local E, UI = ns.Engine, ns.UI
-	if not (E and E.GetStepView and UI and UI.StepGroups and UI.GroupName) then return nil end
-	local GF = UI.GuideFrame
-	local index = GF and GF.ShownStep and GF.ShownStep() or (E.GetStepIndex and E.GetStepIndex())
-	if type(index) ~= "number" then return nil end
-	local function firstGoal(v, g)
-		for _, gi in ipairs(g.goals or {}) do
-			local goal = v.goals[gi]
-			if goal and goal.status ~= "na" and goal.status ~= "done" and not goal.folded then
-				return UI.PlainGoalText and UI.PlainGoalText(goal) or goal.text
-			end
-		end
-	end
-	local function named(v, g)
-		local name = UI.GroupName(v, g)
-		local what = firstGoal(v, g)
-		-- A field group is named by its first goal already: say it once.
-		if g.kind == "here" or what == name then what = nil end
-		return name, g.kind, what
-	end
-	local v = E.GetStepView(index)
-	if v then
-		local groups, focus = UI.StepGroups(v)
-		for gi = (focus or 0) + 1, #groups do
-			if not groups[gi].done then return named(v, groups[gi]) end
-		end
-	end
-	local count = E.GetStepCount and E.GetStepCount() or 0
-	for s = index + 1, count do
-		local w = E.GetStepView(s)
-		if w and w.status ~= "na" and not w.along and not (UI.StepHidden and UI.StepHidden(s)) then
-			local gs, f = UI.StepGroups(w)
-			local g = gs[f or 1] or gs[1]
-			if g then return named(w, g) end
-			return nil
-		end
-	end
-end
-
--- "Then: Gazrog" becomes a numbered line, the same weight as the step's.
-local function numberAfter(frame)
-	if frame.Rule then frame.Rule:Hide() end
-	local name, kind, what = nextUp()
-	if not name or name == "" then return end
-	local num = "|c" .. Theme.Hex("textMuted") .. "2|r   "
-	local who = "|c" .. Theme.Hex(kind == "npc" and "npc" or kind == "object" and "object" or "text") .. name .. "|r"
-	local tail = what and ("  |c" .. Theme.Hex("textMuted") .. "·|r  |c" .. Theme.Hex("textDim") .. what .. "|r") or ""
-	frame.Text:SetText(num .. who .. tail)
-end
-
--- The step's other persons, one summary line each ("Then: Marshal McBride ·
--- Turn in ..."), become numbered steps of the same weight: the person on
--- screen is 1, the lines under it 2, 3... The Skin API hands over goal rows
--- but not these lines, so they are found as the goal scroll's children
--- Polestar marks psLine (an API gap: a guideLine hook would replace this).
--- A step number in the place of `icon` on `frame` (n nil: the icon back).
--- Pooled frames show other things later, so every call sets it. Polestar
--- paints the icon's texture at every render, so the icon comes back by
--- itself under another skin.
-local function numeral(frame, icon, n)
-	local own = kit.store(frame)
-	if not n then
-		if own.num then own.num:Hide() end
-		return
-	end
-	if not own.num then
-		own.num = frame:CreateFontString(nil, "OVERLAY")
-		Theme.Font(own.num, "label")
-		own.num:SetJustifyH("CENTER")
-	end
-	own.num:ClearAllPoints()
-	own.num:SetPoint("CENTER", icon, "CENTER", 0, 0)
-	own.num:SetText(n)
-	own.num:SetTextColor(Theme.Color(n == 1 and "accent" or "textMuted"))
-	own.num:Show()
-	icon:SetTexture(nil)
-end
-
-local function plain(s) return (s:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")) end
-local function numberLines(parts)
-	local L = Polestar.L or {}
-	local THEN = L["Then:"] or "Then:"
-	local THEN_HERE, HERE = L["Then out here:"] or "Then out here:", L["Out here:"] or "Out here:"
-	local child = parts.goals and (parts.goals.Child or parts.goals:GetScrollChild())
-	if not child then return end
-	local lines = {}
-	for _, l in ipairs({ child:GetChildren() }) do
-		if l.psLine and l:IsShown() and l.Text then lines[#lines + 1] = l end
-	end
-	table.sort(lines, function(a, b) return (a.psAt or 0) < (b.psAt or 0) end)
-	local n = 1
-	for _, l in ipairs(lines) do
-		numeral(l, l.Icon, nil)
-		local text = l.Text:GetText() or ""
-		local bare = plain(text)
-		local rest
-		if bare:sub(1, #THEN) == THEN then
-			rest = text:gsub("^(.-)" .. THEN:gsub("%p", "%%%0") .. "%s*", "%1", 1)
-		elseif bare:sub(1, #THEN_HERE) == THEN_HERE then
-			rest = text:gsub(THEN_HERE:gsub("%p", "%%%0"), HERE, 1)
-		elseif bare:sub(1, #HERE) == HERE then
-			rest = text
-		end
-		if rest then
-			n = n + 1
-			l.Text:SetText(rest)
-			numeral(l, l.Icon, n)
-		end
-	end
-	-- The person on screen is step 1 once something follows it.
-	local person = parts.person
-	if person and person.Icon then numeral(person, person.Icon, n > 1 and 1 or nil) end
-end
 
 -- The card on top of the window: the parts Atlas takes out of the window
 -- (guidePlace: While you're here) sit there, on the window's own ground and
@@ -282,14 +161,224 @@ end
 -- below the window (never in the rail) and collapsed until opened (its
 -- preset), the class quest's full heads-up above the window in every mode
 -- (Polestar's own) and the training reminder as a card there too, with a
--- close. Out of compact the step sits on a rail: the last step faded over the
--- title, done goals in place, counts in a column, Up next on the rail. Its
+-- close. Out of compact the rail starts at the current step and connects to
+-- Up next. Done goals stay in place and counts sit in a column. Its
 -- compact mode (J2c) is Polestar's own, with the tip kept as the strip at the
 -- card's foot.
 ---------------------------------------------------------------------------
 
 local function isJ2() return variant() == "j2" end
 local function compact() return Polestar.Get and Polestar.Get("ui.compact") and true or false end
+
+-- Shared type for the headers of Atlas's stacked cards.
+local function capsLabel(fs)
+	Theme.Font(fs, "small")
+	local path, size, flags = fs:GetFont()
+	if path and size then fs:SetFont(path, size - 1, flags) end
+	fs:SetTextColor(Theme.Color("textMuted"))
+end
+
+local OPT_ROW, OPT_PAD = 23, 14
+local optStep, optGoals, optNotes, optSig = nil, {}, {}, nil
+
+local function takesOut(goal)
+	return isJ2() and (goal.optional or goal.t == "note") and true or false
+end
+
+local function optCard(top)
+	local own = kit.store(top)
+	if own.opt then return own.opt end
+	local L = Polestar.L or {}
+	local c = CreateFrame("Frame", nil, top)
+	c.Label = c:CreateFontString(nil, "OVERLAY")
+	c.Label:SetText(string.upper(L["Optional"] or "Optional"))
+	c.Rows, c.Notes = {}, {}
+	own.opt = c
+	return c
+end
+
+local function updateOptionalMeta(r)
+	local goal = r.psGoal
+	local C, Nav, UI = Polestar.Compat, Polestar.Nav, Polestar.UI
+	local target = Nav and Nav.GetTarget and Nav.GetTarget()
+	local active = not goal.previewOnly and not goal.dismissed and goal.status ~= "done" and goal.status ~= "skipped"
+	local aimed = active and target and ((target.stepIndex == optStep and target.goalIndex == goal.index)
+		or (r.psPoint == target))
+	r.Mark:SetShown(aimed and true or false)
+	local yards
+	if active and C and goal.map and goal.x and goal.y then
+		if aimed and Nav.GetDistance then yards = Nav.GetDistance() end
+		if not yards then
+			local gc, gx, gy = C.MapToWorld(goal.map, goal.x, goal.y, goal.f)
+			local pc, px, py = C.GetPlayerWorldPosition()
+			if gc and gc == pc then yards = math.sqrt((gx - px)^2 + (gy - py)^2) end
+		end
+	end
+	local count = UI.GoalProgress(goal)
+	local dist = yards and Polestar.FormatDistance(yards, UI.GuideFrame.HERE_DIST)
+	local meta = count and dist and (count .. "  ·  " .. dist) or count or dist
+	r.Meta:SetText(meta or "")
+	r.Meta:SetShown(meta ~= nil)
+	local right = r.psMetaRight + (meta and math.ceil(r.Meta:GetUnboundedStringWidth()) + 6 or 0)
+	r.Text:SetWidth(math.max(40, r.psWidth - (OPT_PAD + 12 + 6) - right - 2))
+end
+
+local function optRow(c, i)
+	local r = c.Rows[i]
+	if r then return r end
+	r = CreateFrame("Button", nil, c)
+	r.Mark = r:CreateTexture(nil, "ARTWORK")
+	r.Mark:SetTexture(Theme.Media("white"))
+	r.Mark:SetWidth(2)
+	r.Mark:SetPoint("TOPLEFT", r, "TOPLEFT", OPT_PAD - 5, -2)
+	r.Mark:SetPoint("BOTTOMLEFT", r, "BOTTOMLEFT", OPT_PAD - 5, 2)
+	r.Mark:SetVertexColor(Theme.Accent())
+	r.Mark:Hide()
+	r:SetScript("OnClick", function(self)
+		local goal, GF = self.psGoal, Polestar.UI.GuideFrame
+		if not goal or goal.previewOnly or goal.dismissed or goal.status == "done" or goal.status == "skipped" then return end
+		if not GF.AimGoal(goal) and goal.map and goal.x and goal.y then
+			GF.PointAt(goal, goal.text)
+			local Nav = Polestar.Nav
+			self.psPoint = Nav and Nav.GetTarget and Nav.GetTarget()
+		end
+		updateOptionalMeta(self)
+	end)
+	r:SetScript("OnUpdate", function(self, elapsed)
+		self.psElapsed = (self.psElapsed or 0) + elapsed
+		if self.psElapsed < 0.25 then return end
+		self.psElapsed = 0
+		updateOptionalMeta(self)
+	end)
+	r.Icon = r:CreateTexture(nil, "ARTWORK")
+	r.Icon:SetSize(12, 12)
+	r.Icon:SetPoint("LEFT", r, "LEFT", OPT_PAD, 0)
+	r.Text = r:CreateFontString(nil, "OVERLAY")
+	Theme.Font(r.Text, "small")
+	r.Text:SetJustifyH("LEFT")
+	r.Text:SetWordWrap(false)
+	r.Meta = r:CreateFontString(nil, "OVERLAY")
+	Theme.Font(r.Meta, "small")
+	r.Meta:SetJustifyH("RIGHT")
+	r.Skip = CreateFrame("Button", nil, r)
+	r.Skip.Label = r.Skip:CreateFontString(nil, "OVERLAY")
+	Theme.Font(r.Skip.Label, "small")
+	r.Skip.Label:SetPoint("CENTER", r.Skip, "CENTER", 0, 0)
+	r.Skip:SetScript("OnClick", function()
+		local E = Polestar.Engine
+		local goal = r.psGoal
+		if E and E.SkipGoal and goal and optStep then E.SkipGoal(optStep, goal.index) end
+	end)
+	r.Skip:SetScript("OnEnter", function(b) b.Label:SetTextColor(Theme.Color("text")) end)
+	r.Skip:SetScript("OnLeave", function(b) b.Label:SetTextColor(Theme.Color("textDim")) end)
+	c.Rows[i] = r
+	return r
+end
+
+-- Fill from the step on screen (guideRender); the layout comes with layoutStack.
+local function fillOptional(view)
+	optGoals, optNotes, optStep = {}, {}, view and view.index or nil
+	local sig = {}
+	if view and isJ2() then
+		for _, goal in ipairs(view.goals or {}) do
+			if goal.status ~= "na" and not goal.folded then
+				if goal.t == "note" then
+					optNotes[#optNotes + 1] = goal
+				elseif goal.optional then
+					optGoals[#optGoals + 1] = goal
+				else
+					goal = nil
+				end
+				if goal then sig[#sig + 1] = goal.index .. (goal.status or "") .. (goal.dismissed and "d" or "") end
+			end
+		end
+	end
+	-- The render comes after the layout: lay out again when the card's content changed.
+	local now = (optStep or 0) .. ":" .. table.concat(sig, ",")
+	if now ~= optSig then
+		optSig = now
+		local GF = Polestar.UI and Polestar.UI.GuideFrame
+		if GF and GF.Layout then GF.Layout() end
+	end
+end
+
+local function layoutOptional(stack, window)
+	local c = optCard(stack)
+	local UI, E = Polestar.UI, Polestar.Engine
+	local n, m = #optGoals, #optNotes
+	if n + m == 0 or not isJ2() then
+		c:Hide()
+		return nil
+	end
+	local width = window:GetWidth() or 0
+	local lh = 9
+	for i = 1, m do
+		local fs = c.Notes[i]
+		if not fs then
+			fs = c:CreateFontString(nil, "OVERLAY")
+			Theme.Font(fs, "label")
+			fs:SetJustifyH("LEFT")
+			fs:SetJustifyV("TOP")
+			fs:SetWordWrap(true)
+			c.Notes[i] = fs
+		end
+		fs:SetTextColor(Theme.Color("quest"))
+		fs:SetText(UI.GoalText(optNotes[i]))
+		fs:SetWidth(math.max(40, width - OPT_PAD * 2))
+		fs:ClearAllPoints()
+		fs:SetPoint("TOPLEFT", c, "TOPLEFT", OPT_PAD, -lh)
+		fs:Show()
+		lh = lh + math.floor(fs:GetStringHeight() + 0.5) + 3
+	end
+	for i = m + 1, #c.Notes do c.Notes[i]:Hide() end
+	c.Label:ClearAllPoints()
+	c.Label:SetPoint("TOPLEFT", c, "TOPLEFT", OPT_PAD, -lh)
+	capsLabel(c.Label)
+	c.Label:SetShown(n > 0)
+	if n > 0 then lh = lh + math.ceil(c.Label:GetStringHeight()) + 3 end
+	for i = 1, n do
+		local goal = optGoals[i]
+		local r = optRow(c, i)
+		local done, dismissed = goal.status == "done", goal.dismissed
+		if not r.psGoal or r.psGoal.index ~= goal.index or r.psStep ~= optStep then r.psPoint = nil end
+		r.psGoal, r.psStep = goal, optStep
+		r.Mark:SetVertexColor(Theme.Accent())
+		r:ClearAllPoints()
+		r:SetPoint("TOPLEFT", c, "TOPLEFT", 0, -lh)
+		r:SetPoint("TOPRIGHT", c, "TOPRIGHT", 0, -lh)
+		r:SetHeight(OPT_ROW)
+		r.Icon:SetTexture(done and Theme.Media("check") or (dismissed and Theme.Media("skip")) or Theme.VerbIcon(goal.t))
+		r.Icon:SetVertexColor(Theme.Color(done and "success" or "textDim"))
+		r.Text:SetText((done or dismissed) and UI.PlainGoalText(goal) or UI.GoalText(goal))
+		r.Text:SetTextColor(Theme.Color((done or dismissed) and "textMuted" or "text"))
+		r.Meta:SetTextColor(Theme.Color("textMuted"))
+		local right = OPT_PAD
+		local L = Polestar.L or {}
+		r.Skip.Label:SetText(dismissed and (L["Undo"] or "Undo") or (L["Skip"] or "Skip"))
+		r.Skip.Label:SetTextColor(Theme.Color("textDim"))
+		local canSkip = not done and not goal.previewOnly and E and E.SkipGoal ~= nil
+		r.Skip:SetShown(canSkip and true or false)
+		if canSkip then
+			r.Skip:SetSize(math.floor(r.Skip.Label:GetStringWidth() + 8 + 0.5), 14)
+			r.Skip:ClearAllPoints()
+			r.Skip:SetPoint("RIGHT", r, "RIGHT", -right, 0)
+			right = right + r.Skip:GetWidth() + 6
+		end
+		r.Meta:ClearAllPoints()
+		r.Meta:SetPoint("RIGHT", r, "RIGHT", -right, 0)
+		r.Text:ClearAllPoints()
+		r.Text:SetPoint("LEFT", r.Icon, "RIGHT", 6, 0)
+		r.psMetaRight, r.psWidth = right, width
+		updateOptionalMeta(r)
+		r:Show()
+		lh = lh + OPT_ROW
+	end
+	for i = n + 1, #c.Rows do c.Rows[i]:Hide() end
+	lh = lh + 6
+	c:SetHeight(lh)
+	return c
+end
+
 
 -- The card under the window: the Journey, joined to the window's foot.
 local below = {}
@@ -358,20 +447,31 @@ local function jRow(row, goal, info)
 		row.Text:SetFont(own.boldFrom[1], own.boldFrom[2], own.boldFrom[3])
 		own.boldFrom = nil
 	end
+	if own.level then own.level:Hide() end
+	row.psLevelWidth = nil
+	if own.singleLine then
+		row.Text:SetWordWrap(true)
+		row.Text:SetMaxLines(2)
+		own.singleLine = nil
+	end
 	if not isJ() then
 		if row.Mark then row.Mark:SetAlpha(1) end
 		return
 	end
-	-- No accent bar: the bold line and its gold count say which goal is live.
-	if row.Mark then row.Mark:SetAlpha(0) end
 	local text = row.Text:GetText() or ""
-	if info.current and not info.done and not info.skipped then
+	local live = info.current and not info.done and not info.skipped
+	if isJ2() then
+		own.singleLine = true
+		row.Text:SetWordWrap(false)
+		row.Text:SetMaxLines(1)
+	end
+	if live or isJ2() then
 		local path, size, flags = row.Text:GetFont()
 		if path and size then
 			own.boldFrom = { path, size, flags }
-			row.Text:SetFont(semibold() or path, size, flags)
+			row.Text:SetFont((live and semibold()) or path, isJ2() and math.max(8, size - 2) or size, flags)
 		end
-		if goal.progress then
+		if live and goal.progress then
 			text = text:gsub("|c%x%x%x%x%x%x%x%x(%d+/%d+)|r", "|c" .. Theme.Hex("accent") .. "%1|r")
 		end
 	end
@@ -383,7 +483,19 @@ local function jRow(row, goal, info)
 	local lvl = questLevel(goal.quest)
 	if goal.t == "accept" or goal.t == "turnin" then
 		-- The line names the quest already: its level after it.
-		if lvl then text = text .. "  |c" .. muted .. "[" .. lvl .. "]|r" end
+		if lvl and isJ2() then
+			if not own.level then own.level = row:CreateFontString(nil, "OVERLAY") end
+			local label = own.level
+			Theme.Font(label, "small")
+			label:SetTextColor(Theme.Color("textMuted"))
+			label:SetText("[" .. lvl .. "]")
+			label:ClearAllPoints()
+			label:SetPoint("LEFT", row.Text, "RIGHT", 5, 0)
+			label:Show()
+			row.psLevelWidth = math.ceil(label:GetUnboundedStringWidth()) + 6
+		elseif lvl then
+			text = text .. "  |c" .. muted .. "[" .. lvl .. "]|r"
+		end
 		row.Text:SetText(text)
 		return
 	end
@@ -400,7 +512,7 @@ end
 
 -- The bar fills as the guide's progress: a soft wash in the accent, a 2px
 -- accent edge along its foot.
-local function navFill(frac)
+local function navFill()
 	local parts = Theme.GuideParts()
 	local nav = parts and parts.nav
 	if not nav then return end
@@ -416,6 +528,10 @@ local function navFill(frac)
 		own.edge = nav:CreateTexture(nil, "ARTWORK")
 		own.edge:SetTexture(Theme.Media("white"))
 	end
+	-- The counter already accounts for the step in view and catch-up.
+	local at, total = (nav.Steps.Count:GetText() or ""):match("^(%d+) / (%d+)$")
+	at, total = tonumber(at), tonumber(total)
+	local frac = total and total > 0 and at / total or 0
 	local w = math.max(0.01, (nav:GetWidth() or 0) * math.min(1, math.max(0, frac or 0)))
 	local r, g, b = Theme.Accent()
 	own.fill:ClearAllPoints()
@@ -431,12 +547,11 @@ local function navFill(frac)
 	own.edge:Show()
 end
 
--- The person underlined, its accent bar gone.
+-- Underline the person heading.
 local function jPerson(parts)
 	local person = parts.person
 	if not person then return end
 	local own = kit.store(person)
-	if person.Mark then person.Mark:SetAlpha(isJ() and 0 or 1) end
 	if not isJ() then
 		if own.under then own.under:Hide() end
 		return
@@ -456,8 +571,8 @@ end
 
 ---------------------------------------------------------------------------
 -- J2 on a timeline (guide-layouts preset J2): the step sits on a rail
--- between the last step (a green node) and the next three (hollow nodes,
--- fainter ahead); the card is set in from the rail (guideInset); done goals
+-- that starts at the current step and connects to the next three (hollow
+-- nodes, fainter ahead); the card is set in from the rail (guideInset); done goals
 -- stay in place (guideShows "done"), the counts in a column on the right;
 -- the bar holds the guide's emblem and title on the left, the step count
 -- and the menu on the right (Skip is in the menu); While you're here and the training
@@ -467,7 +582,7 @@ end
 
 local function tl() return isJ2() and not compact() end
 local CARD_X, UP_X, RAIL = 22, 13, 15 -- the card's and Up next's insets, the rail's x (window)
-local PREV_H = 24 -- the last step's row over the step's title
+local TITLE_PAD = 10
 local TITLE_UP = 1 -- the step title over the goal lines, in px
 local FADE = { 0.9, 0.65, 0.4 } -- the steps ahead, fainter further on
 
@@ -504,18 +619,6 @@ local function stepLine(v)
 	return text, place, first and first.t or "note"
 end
 
--- The step before the one on screen that the route holds -> index, view | nil
-local function prevStep()
-	local E, UI = Polestar.Engine, Polestar.UI
-	local GF = UI and UI.GuideFrame
-	local index = GF and GF.ShownStep and GF.ShownStep()
-	if not (E and E.GetStepView and type(index) == "number") then return nil end
-	for s = index - 1, 1, -1 do
-		local v = E.GetStepView(s)
-		if v and v.status ~= "na" and not v.along and not (UI.StepHidden and UI.StepHidden(s)) then return s, v end
-	end
-end
-
 -- A node: a disc, with a ring of the ground round it (the current one) or a
 -- hollow middle (the steps ahead).
 local function node(own, key, parent)
@@ -538,10 +641,7 @@ local function paintNode(n, kind, alpha)
 	n.ring:SetVertexColor(bg[1], bg[2], bg[3], kind == "cur" and 1 or 0)
 	n.disc:SetSize(size, size)
 	n.hole:SetSize(size - 2, size - 2)
-	if kind == "past" then
-		n.disc:SetVertexColor(0.42, 0.85, 0.6, alpha)
-		n.hole:SetVertexColor(0, 0, 0, 0)
-	elseif kind == "cur" then
+	if kind == "cur" then
 		local r, g, b = Theme.Accent()
 		n.disc:SetVertexColor(r, g, b, 1)
 		n.hole:SetVertexColor(0, 0, 0, 0)
@@ -564,62 +664,6 @@ local function hideNode(n)
 	if n then n.ring:Hide(); n.disc:Hide(); n.hole:Hide() end
 end
 
--- The last step's row, drawn in the header's top (guidePerson gives it room).
-local function prevRow(person)
-	local own = kit.store(person)
-	if not own.prev then
-		local f = CreateFrame("Button", nil, person)
-		f:SetHeight(PREV_H)
-		f.Num = f:CreateFontString(nil, "OVERLAY")
-		Theme.Font(f.Num, "small")
-		f.Num:SetJustifyH("RIGHT")
-		f.Num:SetWidth(22)
-		f.Icon = f:CreateTexture(nil, "ARTWORK")
-		f.Icon:SetSize(13, 13)
-		f.Text = f:CreateFontString(nil, "OVERLAY")
-		Theme.Font(f.Text, "label")
-		f.Text:SetWordWrap(false)
-		f.Text:SetJustifyH("LEFT")
-		f:SetScript("OnClick", function(self)
-			local E = Polestar.Engine
-			if self.psIndex and E and E.Goto then E.Goto(self.psIndex) end
-		end)
-		own.prev = f
-	end
-	return own.prev
-end
-
-local function fillPrev(person, width)
-	local f = prevRow(person)
-	local index, v = prevStep()
-	if not (tl() and v) then
-		f:Hide()
-		return 0
-	end
-	local UI = Polestar.UI
-	local text, _, verb = stepLine(v)
-	f.psIndex = index
-	f:ClearAllPoints()
-	f:SetPoint("TOPLEFT", person, "TOPLEFT", -CARD_X, 0)
-	f:SetPoint("TOPRIGHT", person, "TOPRIGHT", 0, 0)
-	f.Num:ClearAllPoints()
-	f.Num:SetPoint("RIGHT", f, "LEFT", UP_X + 26, 0)
-	f.Num:SetText(UI.StepNo and UI.StepNo(index) or index)
-	f.Num:SetTextColor(Theme.Color("textMuted"))
-	f.Icon:ClearAllPoints()
-	f.Icon:SetPoint("CENTER", f, "LEFT", UP_X + 43.5, 0)
-	f.Icon:SetTexture(Theme.VerbIcon(verb))
-	f.Icon:SetVertexColor(Theme.Color("textMuted"))
-	f.Text:ClearAllPoints()
-	f.Text:SetPoint("LEFT", f, "LEFT", UP_X + 59, 0)
-	f.Text:SetPoint("RIGHT", f, "RIGHT", -14, 0)
-	f.Text:SetText(text)
-	f.Text:SetTextColor(Theme.Color("textDim"))
-	f:SetAlpha(0.6)
-	f:Show()
-	return PREV_H
-end
-
 -- The rail and its nodes, on a layer of Atlas's own over the window.
 local function rail(parts)
 	local window, person, upnext = parts.window, parts.person, parts.upnext
@@ -632,28 +676,17 @@ local function rail(parts)
 	end
 	local layer = own.tl
 	layer:SetFrameLevel(window:GetFrameLevel() + 8)
-	local prev = person and kit.store(person).prev
 	local onStep = tl() and person and person:IsShown() and person:GetParent() and person:GetParent():IsShown()
 	if not onStep then
 		layer:Hide()
 		return
 	end
 	layer:Show()
-	local top, bottom
-	local pn = node(layer, "past", layer)
-	if prev and prev:IsShown() then
-		paintNode(pn, "past", 0.6)
-		placeNode(pn, prev, "LEFT", RAIL, 0)
-		top = pn.disc
-	else
-		hideNode(pn)
-	end
 	local cn = node(layer, "cur", layer)
 	paintNode(cn, "cur", 1)
-	local nameY = -((prev and prev:IsShown() and PREV_H or 0) + 10 + person.Name:GetStringHeight() / 2)
+	local nameY = -(TITLE_PAD + person.Name:GetStringHeight() / 2)
 	placeNode(cn, person, "TOPLEFT", RAIL - CARD_X, nameY)
-	top = top or cn.disc
-	bottom = cn.disc
+	local top, bottom = cn.disc, cn.disc
 	local rows = {}
 	if upnext and upnext:IsShown() then
 		for _, r in ipairs({ upnext:GetChildren() }) do
@@ -777,9 +810,16 @@ local function altBeside(parts)
 	if not isJ2() then return end
 	for _, row in ipairs(parts.rows or {}) do
 		local count = kit.store(row).count
-		if row:IsShown() and row.Alt and row.Alt:IsShown() and count and count:IsShown() then
-			row.Alt:ClearAllPoints()
-			row.Alt:SetPoint("TOPRIGHT", count, "BOTTOMRIGHT", 4, -1)
+		local alt = row.Alt
+		if row:IsShown() and alt and alt:IsShown() then
+			-- Align the glyph's visible edge with the count, allowing for its click area.
+			local inset = (alt:GetWidth() - alt.Icon:GetWidth()) / 2
+			alt:ClearAllPoints()
+			if count and count:IsShown() then
+				alt:SetPoint("TOPRIGHT", count, "BOTTOMRIGHT", inset, -1)
+			else
+				alt:SetPoint("TOPRIGHT", row, "TOPRIGHT", -14 + inset, -2)
+			end
 		end
 	end
 end
@@ -847,7 +887,7 @@ local function navJ2(parts)
 	nav.Skip:Hide()
 	local path, size, flags = probe("note")
 	nav.Steps.Count:SetFont(path, size + 2, flags)
-	local cw = math.max(math.floor(nav.Steps.Count:GetStringWidth() + 0.5), 40)
+	local cw = math.max(40, math.ceil(nav.Steps.Count:GetUnboundedStringWidth()) + 1)
 	nav.Steps.Count:SetWidth(cw)
 	nav.Steps:SetWidth(24 + cw + 24)
 	nav.Steps:ClearAllPoints()
@@ -912,11 +952,6 @@ end
 -- window's ground and edge, a caps label, 5 apart.
 local GAP = 5
 local slots = {}
-local function capsLabel(fs)
-	local path, size, flags = probe("small")
-	fs:SetFont(path, size - 1, flags)
-	fs:SetTextColor(Theme.Color("textMuted"))
-end
 
 local function stackFrame(window)
 	local own = kit.store(window)
@@ -1016,15 +1051,14 @@ local function fillTrain(f, width)
 	local place = (advice.title and advice.title ~= "" and advice.title)
 		or (trainer and (trainer.npcName or (trainer.map and UI.MapName and UI.MapName(trainer.map)))) or nil
 	f.psTrainer = trainer
-	Theme.Font(f.Label, "small")
 	capsLabel(f.Label)
 	f.Label:SetText(string.upper(tr("Training due")))
 	f.Label:ClearAllPoints()
 	f.Label:SetPoint("TOPLEFT", f, "TOPLEFT", 14, -8)
-	Theme.Font(f.Text, "goal")
+	Theme.Font(f.Text, "small")
 	f.Text:SetTextColor(Theme.Color("text"))
 	f.Text:SetText(tr("New spells at your class trainer"))
-	Theme.Font(f.Place, "goal")
+	Theme.Font(f.Place, "small")
 	f.Place:SetTextColor(Theme.Color("textMuted"))
 	f.Place:SetText(place or "")
 	f.Place:SetShown(place ~= nil)
@@ -1054,6 +1088,8 @@ local function layoutStack(parts)
 	local list = {}
 	if slots.class then list[#list + 1] = slots.class end
 	if slots.here then list[#list + 1] = slots.here end
+	local optional = layoutOptional(stack, window)
+	if optional then list[#list + 1] = optional end
 	if slots.train then list[#list + 1] = slots.train end
 	slots.class, slots.here, slots.train = nil, nil, nil
 	local width = window:GetWidth() or 300
@@ -1122,7 +1158,6 @@ local function headerBack(person)
 	Theme.Font(person.Where, "small")
 	person.Where:SetTextColor(Theme.Color("textDim"))
 	if person.Icon then person.Icon:SetAlpha(1) end
-	if own.prev then own.prev:Hide() end
 end
 
 local function jHeader(person, width, h)
@@ -1154,7 +1189,7 @@ local function jHeader(person, width, h)
 	if person.Icon then person.Icon:SetAlpha(0) end
 	person.Level:Hide()
 	local pad = tl() and 11 or 14
-	local top = fillPrev(person, width) + 10
+	local top = TITLE_PAD
 	local whereW = 0
 	if person.Where:IsShown() then
 		whereW = math.min(person.Where:GetUnboundedStringWidth() + 1, math.floor(width * 0.45))
@@ -1267,7 +1302,7 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 		{ id = "j", name = "J: one bar", desc = "One bar that fills as you go, no tabs or foot bar, the live goal in bold with a gold count, quest and level under each goal, Up next on a fading rail. Compact mode drops Up next and the XP row.",
 			tokens = { accent = "#e6ba66" },
 			preset = { ["guideWindow.tabs"] = false, ["guideWindow.progress"] = false, ["ui.upcoming"] = 3, ["ui.upcomingOpen"] = true } },
-		{ id = "j2", name = "J2: one bar, timeline", desc = "J with the steps on a rail: the last step faded above the title, done goals kept in place, the counts in a column, the tip as a strip at the card's foot and Up next on the rail. The Journey is a card below the window, collapsed. Training and the class quest come up as cards above the window. Compact mode keeps the tip strip.",
+		{ id = "j2", name = "J2: one bar, timeline", desc = "J with the steps on a rail: done goals kept in place, the counts in a column, the tip as a strip at the card's foot and Up next on the rail. The Journey is a card below the window, collapsed. Training and the class quest come up as cards above the window. Compact mode keeps the tip strip.",
 			tokens = { accent = "#e6ba66" },
 			preset = { ["guideWindow.tabs"] = false, ["guideWindow.progress"] = false, ["nav.journeyOpen"] = false, ["ui.upcoming"] = 3, ["ui.upcomingOpen"] = true } },
 	},
@@ -1287,7 +1322,7 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 				if parts.bar then parts.bar:Hide() end
 			end
 		end,
-		guideProgress = function(foot, frac) navFill(frac) end,
+		guideProgress = navFill,
 		guidePlace = function(name, frame, width, height)
 			if name == "after" then
 				-- J2's rail shows the next step already.
@@ -1295,7 +1330,6 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 					frame:Hide()
 					return true
 				end
-				numberAfter(frame)
 			end
 			if name == "upnext" then
 				timeline(frame)
@@ -1380,6 +1414,10 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 		end,
 		-- Brass and Tooltip: the class card in the variant's accent, not the class colour.
 		card = function(frame, kind, parts)
+			if kind == "headsupCompact" or kind == "hereCompact" then return isJ2() end
+			if kind == "headsupGap" then return isJ2() and GAP or nil end
+			if kind == "headsupAboveOnly" then return isJ2() end
+			if kind == "headsupRewardGlyph" then return isJ2() and Theme.Media("icon-train") or nil end
 			if not CARD_ACCENT[variant()] then return end
 			local r, g, b = Theme.Accent()
 			for _, region in ipairs(parts.accents or {}) do
@@ -1405,6 +1443,7 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 		guideShows = function(name, shown)
 			if name == "tip" then return isJ2() end
 			if name == "done" then return isJ2() end
+			if name == "goalScroll" then return not isJ2() end
 			if name == "upnextHead" then return not tl() end
 			-- The class-quest card on the chain's first step only.
 			if name == "classCardLater" then return false end
@@ -1418,8 +1457,9 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 			local top = own and own.top
 			if top and top:IsShown() then return top end
 		end,
+		guideTakes = takesOut,
 		guideRender = function(view, parts)
-			if view then numberLines(parts) end
+			fillOptional(view)
 			jPerson(parts)
 			-- The render shows Skip again after the layout: J2 keeps it in the menu.
 			if isJ2() and parts.nav then parts.nav.Skip:Hide() end
@@ -1450,6 +1490,13 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 		for _, row in ipairs(parts.rows or {}) do
 			if row.Mark then row.Mark:SetAlpha(1) end
 			local own = kit.store(row)
+			if own.level then own.level:Hide() end
+			row.psLevelWidth = nil
+			if own.singleLine then
+				row.Text:SetWordWrap(true)
+				row.Text:SetMaxLines(2)
+				own.singleLine = nil
+			end
 			if own.boldFrom then
 				row.Text:SetFont(own.boldFrom[1], own.boldFrom[2], own.boldFrom[3])
 				own.boldFrom = nil
