@@ -74,6 +74,8 @@ local function nextUp()
 	end
 end
 
+local isJ -- defined with the layouts below
+
 -- "Then: Gazrog" becomes a numbered line, the same weight as the step's.
 local function numberAfter(frame)
 	if frame.Rule then frame.Rule:Hide() end
@@ -144,9 +146,11 @@ local function numberLines(parts)
 			numeral(l, l.Icon, n)
 		end
 	end
-	-- The person on screen is step 1 once something follows it.
+	-- The person on screen is step 1 once something follows it, where the title
+	-- keeps an icon column. J hides that icon (the title starts in its place, or
+	-- the rail's node marks it), so a "1" there lands on the title or the row above.
 	local person = parts.person
-	if person and person.Icon then numeral(person, person.Icon, n > 1 and 1 or nil) end
+	if person and person.Icon then numeral(person, person.Icon, (n > 1 and not isJ()) and 1 or nil) end
 end
 
 -- The card on top of the window: the parts Atlas takes out of the window
@@ -271,7 +275,7 @@ local CARD_ACCENT = { tooltip = true, brass = true }
 -- (compact drops Up next, the XP row and the tabs).
 ---------------------------------------------------------------------------
 
-local function isJ()
+isJ = function()
 	local v = variant()
 	return v == "j" or v == "j2"
 end
