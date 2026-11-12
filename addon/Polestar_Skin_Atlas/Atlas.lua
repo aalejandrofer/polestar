@@ -141,7 +141,7 @@ local function numberLines(parts)
 		if rest then
 			n = n + 1
 			l.Text:SetText(rest)
-			numeral(l, l.Icon, n)
+			numeral(l, l.Icon, nil) -- no step numbers inside a step
 		end
 	end
 	-- The person on screen is step 1 once something follows it.
@@ -149,7 +149,7 @@ local function numberLines(parts)
 	-- Not where the title has no icon column (the J header hides the icon and
 	-- puts the title in its place): the 1 would sit under the title's first letter.
 	if person and person.Icon then
-		numeral(person, person.Icon, (n > 1 and person.Icon:GetAlpha() > 0.5) and 1 or nil)
+		numeral(person, person.Icon, nil)
 	end
 end
 
@@ -206,6 +206,9 @@ local function layoutTop(parts)
 	else
 		top:Hide()
 	end
+	-- The heads-up card sits on this card: put it on again at the new height.
+	local CT = Polestar.UI and Polestar.UI.ClassToast
+	if CT and CT.current and CT.Place then CT.Place(false) end
 end
 
 -- While you're here on the card: the window's ground, not a tinted slab.
