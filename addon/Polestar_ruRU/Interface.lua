@@ -3229,7 +3229,7 @@ L["Loot that starts a quest glows on the quest item button; timed quests count d
 L["Hide it all"] = "Скрыть всё"
 L["A click on the minimap button hides all of Polestar; another brings it back."] = "Щелчок по кнопке у миникарты скрывает весь Polestar; повторный щелчок возвращает его."
 L["Browse all steps"] = "Все шаги гайда"
-L["Click the step number to see every step of the guide (thanks TTik3r and aalejandrofer)."] = "Щелкните номер шага, чтобы увидеть все шаги гайда (спасибо TTik3r и aalejandrofer)."
+L["Click the step number to see every step of the guide (thanks TTik3r and ttik3r)."] = "Щелкните номер шага, чтобы увидеть все шаги гайда (спасибо TTik3r и ttik3r)."
 L["Profession guides"] = "Гайды по профессиям"
 L["Rebuilt on Forever's trainers, and they start where your skill is."] = "Пересобраны на учителях Forever и начинаются с вашего уровня навыка."
 L["All of 0.3.7 in 9 languages, with thanks to our translators."] = "Всё из 0.3.7 на 9 языках — спасибо нашим переводчикам."

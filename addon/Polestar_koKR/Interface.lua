@@ -3229,7 +3229,7 @@ L["Loot that starts a quest glows on the quest item button; timed quests count d
 L["Hide it all"] = "모두 숨기기"
 L["A click on the minimap button hides all of Polestar; another brings it back."] = "미니맵 버튼을 클릭하면 Polestar 전체가 숨겨지고, 다시 클릭하면 돌아옵니다."
 L["Browse all steps"] = "모든 단계 보기"
-L["Click the step number to see every step of the guide (thanks TTik3r and aalejandrofer)."] = "단계 번호를 클릭하면 가이드의 모든 단계를 볼 수 있습니다(TTik3r 님과 aalejandrofer 님께 감사)."
+L["Click the step number to see every step of the guide (thanks TTik3r and ttik3r)."] = "단계 번호를 클릭하면 가이드의 모든 단계를 볼 수 있습니다(TTik3r 님과 ttik3r 님께 감사)."
 L["Profession guides"] = "전문 기술 가이드"
 L["Rebuilt on Forever's trainers, and they start where your skill is."] = "Forever의 상급자 기준으로 새로 만들었으며, 현재 숙련도에서 시작합니다."
 L["All of 0.3.7 in 9 languages, with thanks to our translators."] = "0.3.7의 모든 내용을 9개 언어로, 번역가 여러분께 감사드립니다."

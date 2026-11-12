@@ -645,7 +645,7 @@
   step of the guide in place of the step card, each with its people and goals,
   done ones ticked and the live step marked. A click on a step looks at it; a
   second click on the number or Escape closes the list. In every look and in
-  compact mode (thanks TTik3r; built by aalejandrofer, #1678).
+  compact mode (thanks TTik3r; built by ttik3r, #1678).
 - Class quest cards and dungeon heads-ups now come one level before their
   quest's level, not as soon as the game lets you take it. The game often
   offers these quests 3-5 levels early (The Eye of Bhossca, level 35, at 30),
