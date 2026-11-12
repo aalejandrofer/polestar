@@ -1275,7 +1275,7 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 	api = 2,
 	name = "Atlas",
 	addon = ADDON,
-	author = "Alejandro",
+	author = "TTik3r",
 	version = "0.1",
 	desc = "One calm surface: a softened class accent, no section lines, the next step numbered.",
 	base = "polestar",
