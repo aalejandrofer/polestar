@@ -146,7 +146,11 @@ local function numberLines(parts)
 	end
 	-- The person on screen is step 1 once something follows it.
 	local person = parts.person
-	if person and person.Icon then numeral(person, person.Icon, n > 1 and 1 or nil) end
+	-- Not where the title has no icon column (the J header hides the icon and
+	-- puts the title in its place): the 1 would sit under the title's first letter.
+	if person and person.Icon then
+		numeral(person, person.Icon, (n > 1 and person.Icon:GetAlpha() > 0.5) and 1 or nil)
+	end
 end
 
 -- The card on top of the window: the parts Atlas takes out of the window
@@ -1321,7 +1325,7 @@ local function jHeader(person, width, h)
 		person.Name:SetFont(path, (size or 12) + 1, flags)
 	end
 	person.Name:SetWordWrap(false)
-	if person.Icon then person.Icon:SetAlpha(0) end
+	if person.Icon then person.Icon:SetAlpha(0); numeral(person, person.Icon, nil) end
 	person.Level:Hide()
 	local pad = tl() and 11 or 14
 	local top = fillPrev(person, width) + 10
