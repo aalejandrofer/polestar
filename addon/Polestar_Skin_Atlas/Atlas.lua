@@ -1030,8 +1030,14 @@ local function navJ2(parts)
 	nav.Skip:Hide()
 	local path, size, flags = probe("note")
 	nav.Steps.Count:SetFont(path, size + 2, flags)
-	local cw = math.max(math.floor(nav.Steps.Count:GetStringWidth() + 0.5), 40)
-	nav.Steps.Count:SetWidth(cw)
+	-- Measured at the longest the count gets ("100 / 100"): the text may be
+	-- set after this runs, and a width from "5 / 80" cuts "49 / 80" to "49 /...".
+	local Count = nav.Steps.Count
+	local text = Count:GetText()
+	Count:SetText("000 / 000")
+	local cw = math.max(math.floor(Count:GetStringWidth() + 0.5), 40)
+	Count:SetText(text)
+	Count:SetWidth(cw)
 	nav.Steps:SetWidth(24 + cw + 24)
 	nav.Steps:ClearAllPoints()
 	nav.Steps:SetPoint("RIGHT", nav.Menu, "LEFT", -2, 0)
