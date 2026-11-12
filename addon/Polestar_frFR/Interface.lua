@@ -1344,7 +1344,6 @@ L["Bags nearly full: %d slot left."] = "Sacs presque pleins : %d emplacement lib
 L["Bags nearly full: %d slots left."] = "Sacs presque pleins : %d emplacements libres."
 L["Click again to delete it"] = "Cliquez à nouveau pour le supprimer"
 L["Delete it"] = "Le supprimer"
-L["No junk to make room with. Ctrl+Alt-click an item to mark it as junk."] = "Aucune camelote pour faire de la place. Ctrl+Alt-clic sur un objet pour le marquer comme camelote."
 L["Upgrade: %s"] = "Amélioration : %s"
 L["Wear it"] = "L'équiper"
 L["Not this one"] = "Pas celui-ci"
@@ -3477,3 +3476,4 @@ L["Old rank cards are off. Turn them back on under Options > Quality of Life > V
 -- L["A level-up card lists what to train; %s learns it (thanks RikyZ90); %s updates your bars."] = "Au gain de niveau, une carte liste vos sorts ; %s les apprend (merci RikyZ90) ; %s met à jour vos barres."
 -- L["Looking ahead. The guide is at step %d."] = "Aperçu de la suite. Le guide est à l'étape %d."
 -- L["Looking back. The guide is at step %d."] = "Retour en arrière. Le guide est à l'étape %d."
+-- L["No junk to make room with. Ctrl+Alt-click an item to mark it as junk."] = "Aucune camelote pour faire de la place. Ctrl+Alt-clic sur un objet pour le marquer comme camelote."

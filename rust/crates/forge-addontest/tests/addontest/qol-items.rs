@@ -489,6 +489,18 @@ fn banner_bags_full_offers_the_two_click_delete_and_close_dismisses_it() {
 }
 
 #[test]
+fn banner_bags_full_without_junk_says_only_that_the_bags_are_full() {
+	let out = run_ui(
+		r#"
+		bags = { free = 0, armed = false }
+		Polestar.Fire("BAG_SPACE")
+		emit({ shown = B:IsShown(), text = B.Text:GetText(), jump = B.Jump:IsShown() })
+	"#,
+	);
+	assert_eq!(out[0], json!({ "shown": true, "text": "Your bags are full.", "jump": false }));
+}
+
+#[test]
 fn banner_gear_offer_wear_it_or_not_this_one() {
 	let out = run_ui(
 		r#"

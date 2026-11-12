@@ -1343,7 +1343,6 @@ L["Bags nearly full: %d slot left."] = "Сумки почти полны: ост
 L["Bags nearly full: %d slots left."] = "Сумки почти полны: осталось ячеек: %d."
 L["Click again to delete it"] = "Щелкните еще раз, чтобы удалить"
 L["Delete it"] = "Удалить"
-L["No junk to make room with. Ctrl+Alt-click an item to mark it as junk."] = "Нет хлама, чтобы освободить место. Ctrl+Alt-щелчок по предмету помечает его как хлам."
 L["Upgrade: %s"] = "Улучшение: %s"
 L["Wear it"] = "Надеть"
 L["Not this one"] = "Не этот"
@@ -3435,3 +3434,4 @@ L["Old rank cards are off. Turn them back on under Options > Quality of Life > V
 -- L["A level-up card lists what to train; %s learns it (thanks RikyZ90); %s updates your bars."] = "При новом уровне карточка покажет новые заклинания; «%s» изучит всё (спасибо RikyZ90); «%s» обновит ранги на панелях."
 -- L["Looking ahead. The guide is at step %d."] = "Просмотр вперед. Гайд на шаге %d."
 -- L["Looking back. The guide is at step %d."] = "Просмотр назад. Гайд на шаге %d."
+-- L["No junk to make room with. Ctrl+Alt-click an item to mark it as junk."] = "Нет хлама, чтобы освободить место. Ctrl+Alt-щелчок по предмету помечает его как хлам."

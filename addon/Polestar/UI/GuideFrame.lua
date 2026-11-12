@@ -1916,7 +1916,8 @@ function GF.LayoutBanner(width)
 			banner.Text:SetText(title .. "\n" .. string.format(L["Cheapest junk: %s (%s)"], Q.Space.ItemText(j), worth))
 			placeLink(banner.Jump, n.armed and L["Click again to delete it"] or L["Delete it"], 0, -4)
 		else
-			banner.Text:SetText(title .. "\n" .. L["No junk to make room with. Ctrl+Alt-click an item to mark it as junk."])
+			-- Just the news: no junk to offer, so no how-to under it.
+			banner.Text:SetText(title)
 			banner.Jump:Hide()
 		end
 		banner.Close:Show()

@@ -1343,7 +1343,6 @@ L["Bags nearly full: %d slot left."] = "가방이 거의 가득 참: %d칸 남�
 L["Bags nearly full: %d slots left."] = "가방이 거의 가득 참: %d칸 남음."
 L["Click again to delete it"] = "한 번 더 클릭하면 삭제"
 L["Delete it"] = "삭제하기"
-L["No junk to make room with. Ctrl+Alt-click an item to mark it as junk."] = "공간을 만들 잡동사니가 없습니다. 아이템을 Ctrl+Alt-클릭하여 잡동사니로 표시하십시오."
 L["Upgrade: %s"] = "향상: %s"
 L["Wear it"] = "착용하기"
 L["Not this one"] = "이건 아님"
@@ -3429,3 +3428,4 @@ L["Old rank cards are off. Turn them back on under Options > Quality of Life > V
 -- L["A level-up card lists what to train; %s learns it (thanks RikyZ90); %s updates your bars."] = "레벨업 카드가 배울 주문을 보여 줍니다. %s 버튼으로 모두 배우고(RikyZ90 님께 감사), %s 버튼으로 단축바의 주문 레벨을 올립니다."
 -- L["Looking ahead. The guide is at step %d."] = "앞을 보는 중. 가이드는 %d단계에 있습니다."
 -- L["Looking back. The guide is at step %d."] = "뒤를 보는 중. 가이드는 %d단계에 있습니다."
+-- L["No junk to make room with. Ctrl+Alt-click an item to mark it as junk."] = "공간을 만들 잡동사니가 없습니다. 아이템을 Ctrl+Alt-클릭하여 잡동사니로 표시하십시오."
