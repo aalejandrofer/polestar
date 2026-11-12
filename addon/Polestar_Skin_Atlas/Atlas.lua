@@ -93,9 +93,9 @@ local function takeHere(frame, top)
 	return body
 end
 
--- The variant in use ("calm" before the player picks one).
+-- The variant in use ("atlas" before the player picks one).
 local function variant()
-	return Theme.SkinVariant and Theme.SkinVariant("atlas") or "calm"
+	return Theme.SkinVariant and Theme.SkinVariant("atlas") or "atlas"
 end
 
 -- Ledger: what a goal row would tell in a second column, on its right:
@@ -137,12 +137,12 @@ local function ledgerRow(row, goal, info)
 end
 
 -- The variants that keep their own accent, not the softened class colour.
-local OWN_ACCENT = { tooltip = true, brass = true, j = true, j2 = true }
--- The variants whose class card takes that accent (J keeps the class colour there).
+local OWN_ACCENT = { atlas = true }
+-- The variants whose class card takes that accent (Atlas keeps the class colour there).
 local CARD_ACCENT = { tooltip = true, brass = true }
 
 ---------------------------------------------------------------------------
--- J: the saved layout (data/local mockups, guide-layouts preset J). One bar
+-- Atlas: the saved layout (data/local mockups). One bar
 -- that fills as the guide's progress, no tabs and no foot bar (its preset),
 -- the person underlined, no accent bars, the goal the arrow is on in bold
 -- with its count in gold, the quest and its level under each objective,
@@ -150,24 +150,24 @@ local CARD_ACCENT = { tooltip = true, brass = true }
 -- (compact drops Up next, the XP row and the tabs).
 ---------------------------------------------------------------------------
 
-local function isJ()
+local function isBar()
 	local v = variant()
-	return v == "j" or v == "j2"
+	return v == "atlas"
 end
 
 ---------------------------------------------------------------------------
--- J2: the second saved layout (guide-layouts presets J2 and J2c). J with the
+-- Atlas: the second saved layout (guide-layouts presets). The bar with the
 -- step's tip under the goal the arrow is on, the Journey on a card joined
 -- below the window (never in the rail) and collapsed until opened (its
 -- preset), the class quest's full heads-up above the window in every mode
 -- (Polestar's own) and the training reminder as a card there too, with a
 -- close. Out of compact the rail starts at the current step and connects to
 -- Up next. Done goals stay in place and counts sit in a column. Its
--- compact mode (J2c) is Polestar's own, with the tip kept as the strip at the
+-- compact mode is Polestar's own, with the tip kept as the strip at the
 -- card's foot.
 ---------------------------------------------------------------------------
 
-local function isJ2() return variant() == "j2" end
+local function isTimeline() return variant() == "atlas" end
 local function compact() return Polestar.Get and Polestar.Get("ui.compact") and true or false end
 
 -- Shared type for the headers of Atlas's stacked cards.
@@ -182,7 +182,7 @@ local OPT_ROW, OPT_PAD = 23, 14
 local optStep, optGoals, optNotes, optSig = nil, {}, {}, nil
 
 local function takesOut(goal)
-	return isJ2() and (goal.optional or goal.t == "note") and true or false
+	return isTimeline() and (goal.optional or goal.t == "note") and true or false
 end
 
 local function optCard(top)
@@ -279,7 +279,7 @@ end
 local function fillOptional(view)
 	optGoals, optNotes, optStep = {}, {}, view and view.index or nil
 	local sig = {}
-	if view and isJ2() then
+	if view and isTimeline() then
 		for _, goal in ipairs(view.goals or {}) do
 			if goal.status ~= "na" and not goal.folded then
 				if goal.t == "note" then
@@ -306,7 +306,7 @@ local function layoutOptional(stack, window)
 	local c = optCard(stack)
 	local UI, E = Polestar.UI, Polestar.Engine
 	local n, m = #optGoals, #optNotes
-	if n + m == 0 or not isJ2() then
+	if n + m == 0 or not isTimeline() then
 		c:Hide()
 		return nil
 	end
@@ -454,22 +454,22 @@ local function jRow(row, goal, info)
 		row.Text:SetMaxLines(2)
 		own.singleLine = nil
 	end
-	if not isJ() then
+	if not isBar() then
 		if row.Mark then row.Mark:SetAlpha(1) end
 		return
 	end
 	local text = row.Text:GetText() or ""
 	local live = info.current and not info.done and not info.skipped
-	if isJ2() then
+	if isTimeline() then
 		own.singleLine = true
 		row.Text:SetWordWrap(false)
 		row.Text:SetMaxLines(1)
 	end
-	if live or isJ2() then
+	if live or isTimeline() then
 		local path, size, flags = row.Text:GetFont()
 		if path and size then
 			own.boldFrom = { path, size, flags }
-			row.Text:SetFont((live and semibold()) or path, isJ2() and math.max(8, size - 2) or size, flags)
+			row.Text:SetFont((live and semibold()) or path, isTimeline() and math.max(8, size - 2) or size, flags)
 		end
 		if live and goal.progress then
 			text = text:gsub("|c%x%x%x%x%x%x%x%x(%d+/%d+)|r", "|c" .. Theme.Hex("accent") .. "%1|r")
@@ -483,7 +483,7 @@ local function jRow(row, goal, info)
 	local lvl = questLevel(goal.quest)
 	if goal.t == "accept" or goal.t == "turnin" then
 		-- The line names the quest already: its level after it.
-		if lvl and isJ2() then
+		if lvl and isTimeline() then
 			if not own.level then own.level = row:CreateFontString(nil, "OVERLAY") end
 			local label = own.level
 			Theme.Font(label, "small")
@@ -518,7 +518,7 @@ local function navFill()
 	if not nav then return end
 	local own = kit.store(nav)
 	-- The transparent window has no bar to fill.
-	if not isJ() or (parts.window and parts.window.psBare) then
+	if not isBar() or (parts.window and parts.window.psBare) then
 		if own.fill then own.fill:Hide(); own.edge:Hide() end
 		return
 	end
@@ -552,7 +552,7 @@ local function jPerson(parts)
 	local person = parts.person
 	if not person then return end
 	local own = kit.store(person)
-	if not isJ() then
+	if not isBar() then
 		if own.under then own.under:Hide() end
 		return
 	end
@@ -570,17 +570,17 @@ local function jPerson(parts)
 end
 
 ---------------------------------------------------------------------------
--- J2 on a timeline (guide-layouts preset J2): the step sits on a rail
+-- Atlas on a timeline: the step sits on a rail
 -- that starts at the current step and connects to the next three (hollow
 -- nodes, fainter ahead); the card is set in from the rail (guideInset); done goals
 -- stay in place (guideShows "done"), the counts in a column on the right;
 -- the bar holds the guide's emblem and title on the left, the step count
 -- and the menu on the right (Skip is in the menu); While you're here and the training
--- reminder are cards above the window. Compact mode (J2c) keeps the cards
+-- reminder are cards above the window. Compact mode keeps the cards
 -- and the bar, not the rail (no Up next there).
 ---------------------------------------------------------------------------
 
-local function tl() return isJ2() and not compact() end
+local function tl() return isTimeline() and not compact() end
 local CARD_X, UP_X, RAIL = 22, 13, 15 -- the card's and Up next's insets, the rail's x (window)
 local TITLE_PAD = 10
 local TITLE_UP = 1 -- the step title over the goal lines, in px
@@ -775,7 +775,7 @@ local COUNT = "|c%x%x%x%x%x%x%x%x(%d+/%d+)|r"
 local function countColumn(row, goal, info)
 	local own = kit.store(row)
 	if own.count then own.count:Hide() end
-	if not isJ2() then return end
+	if not isTimeline() then return end
 	if row.Check:IsShown() then
 		row.Check:SetAlpha(0)
 		row.Check:Disable()
@@ -807,7 +807,7 @@ end
 -- After the rows are laid out: "Other" (the next spot) in the count's
 -- column, on the line under the count; the row's text stops short of both.
 local function altBeside(parts)
-	if not isJ2() then return end
+	if not isTimeline() then return end
 	for _, row in ipairs(parts.rows or {}) do
 		local count = kit.store(row).count
 		local alt = row.Alt
@@ -824,7 +824,7 @@ local function altBeside(parts)
 	end
 end
 
--- J2: the class guide on offer is the heads-up card above the window (×,
+-- Atlas: the class guide on offer is the heads-up card above the window (×,
 -- Later), not a banner in it. Shown once per notice; its buttons are the
 -- banner's own (open the guide in a tab, Later).
 local cqShown
@@ -850,8 +850,8 @@ end
 -- has them).
 local function navBack(nav)
 	local own = nav and kit.store(nav)
-	if not (own and own.j2) then return end
-	own.j2 = nil
+	if not (own and own.atlas) then return end
+	own.atlas = nil
 	if own.emblem then own.emblem:Hide() end
 	Theme.Font(nav.Steps.Count, "number")
 	nav.Steps:ClearAllPoints()
@@ -866,12 +866,12 @@ end
 local function navJ2(parts)
 	local nav = parts.nav
 	if not nav then return end
-	if not isJ2() then
+	if not isTimeline() then
 		navBack(nav)
 		return
 	end
 	local own = kit.store(nav)
-	own.j2 = true
+	own.atlas = true
 	if not own.emblem then
 		own.emblem = nav:CreateTexture(nil, "ARTWORK")
 		own.emblem:SetTexture(Theme.Media("emblem"))
@@ -928,15 +928,15 @@ local function xpJ2(xp, off)
 	local on = not off and tl()
 	local line = xp.psLine
 	if not on then
-		if kit.store(xp).j2 then
-			kit.store(xp).j2 = nil
+		if kit.store(xp).atlas then
+			kit.store(xp).atlas = nil
 			if line then xp.Text:SetText(line) end
 			xp.Icon:SetTexture(Theme.Media("icon-level"))
 			xp.Icon:SetVertexColor(Theme.Color("textMuted"))
 		end
 		return
 	end
-	kit.store(xp).j2 = true
+	kit.store(xp).atlas = true
 	local level = UnitLevel and UnitLevel("player")
 	local cur, max = UnitXP and UnitXP("player"), UnitXPMax and UnitXPMax("player")
 	local head = {}
@@ -948,7 +948,7 @@ local function xpJ2(xp, off)
 	xp.Icon:SetVertexColor(Theme.Accent())
 end
 
--- The cards above the window (J2): each part on a card of its own, the
+-- The cards above the window (Atlas): each part on a card of its own, the
 -- window's ground and edge, a caps label, 5 apart.
 local GAP = 5
 local slots = {}
@@ -1009,7 +1009,7 @@ local function trainCard(stack)
 	return f
 end
 
--- J2: the class-quest card (UI/ClassCard.lua) is a card above the window,
+-- Atlas: the class-quest card (UI/ClassCard.lua) is a card above the window,
 -- with a × that puts its chain away for the session.
 local classShut = {}
 local function classClose(f, on)
@@ -1139,7 +1139,7 @@ local function hereLabel(here, on)
 	end
 end
 
--- J's step title as the mockup draws it: the name in the medium face at
+-- Atlas's step title as the mockup draws it: the name in the medium face at
 -- 13, on one line; its zone at the right of the same row; no verb icon and
 -- no level line. The core's own look comes back under another variant or
 -- skin (headerBack).
@@ -1161,7 +1161,7 @@ local function headerBack(person)
 end
 
 local function jHeader(person, width, h)
-	if not isJ() then
+	if not isBar() then
 		headerBack(person)
 		return nil
 	end
@@ -1176,8 +1176,8 @@ local function jHeader(person, width, h)
 	end
 	Theme.Font(person.Name, "label")
 	local path, size, flags = person.Name:GetFont()
-	if isJ2() then
-		-- J2: the title two sizes over the goal lines, the zone at their size.
+	if isTimeline() then
+		-- Atlas: the title two sizes over the goal lines, the zone at their size.
 		local _, goalSize = probe("goal")
 		person.Name:SetFont(semibold() or path, goalSize + TITLE_UP, flags)
 		Theme.Font(person.Where, "goal")
@@ -1227,8 +1227,8 @@ local function timeline(frame)
 	end
 	for _, d in ipairs(own.dots) do d:Hide() end
 	if own.rail then own.rail:Hide() end
-	-- J2 draws its rail over the whole window (rail, upFit).
-	if not isJ() or isJ2() then
+	-- Atlas draws its rail over the whole window (rail, upFit).
+	if not isBar() or isTimeline() then
 		for _, r in ipairs(rows) do r:SetAlpha(1) end
 		return
 	end
@@ -1266,7 +1266,7 @@ end
 
 -- With the foot bar off, room under the window's last part.
 local function jFootRoom()
-	if not isJ() then return 0 end
+	if not isBar() then return 0 end
 	local get = Polestar.Get
 	return (get and get("guideWindow.progress") == false) and 8 or 0
 end
@@ -1285,28 +1285,11 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 		menuLine = "#ffffff1f",
 	},
 	variants = {
-		{ id = "calm", name = "Calm", desc = "One surface in your scheme, your class colour softened." },
-		{ id = "ledger", name = "Ledger", desc = "Calm, with the quest's level and the distance on each goal's row." },
-		{ id = "tooltip", name = "Tooltip", desc = "Near-black, a blue-grey edge and a gold title, as the game's tooltips.",
-			tokens = {
-				bg = "#07090f", panel = "#0b0e17", panelAlt = "#131826", sky = "#07090f", star = "#ffffff00",
-				windowBorder = "#5b6a8c", accent = "#8fa3c8", title = "#e6c36a", personName = "#e6c36a",
-				text = "#eef0f6", textDim = "#b9bfcc", textMuted = "#8e95a6",
-			} },
-		{ id = "brass", name = "Muted brass", desc = "Warm dark ground, a bronze edge, brass on the bar and the progress.",
-			tokens = {
-				bg = "#17110c", panel = "#1d160f", panelAlt = "#261d13", sky = "#17110c", star = "#ffffff00",
-				windowBorder = "#5e4a2c", accent = "#b99a58", quest = "#c9ad6e", npc = "#a9c6de",
-				text = "#f3ead8", textDim = "#cbbd9f", textMuted = "#a39578",
-			} },
-		{ id = "j", name = "J: one bar", desc = "One bar that fills as you go, no tabs or foot bar, the live goal in bold with a gold count, quest and level under each goal, Up next on a fading rail. Compact mode drops Up next and the XP row.",
-			tokens = { accent = "#e6ba66" },
-			preset = { ["guideWindow.tabs"] = false, ["guideWindow.progress"] = false, ["ui.upcoming"] = 3, ["ui.upcomingOpen"] = true } },
-		{ id = "j2", name = "J2: one bar, timeline", desc = "J with the steps on a rail: done goals kept in place, the counts in a column, the tip as a strip at the card's foot and Up next on the rail. The Journey is a card below the window, collapsed. Training and the class quest come up as cards above the window. Compact mode keeps the tip strip.",
+		{ id = "atlas", name = "Atlas", desc = "One bar that fills as you go, the steps on a rail: done goals kept in place, the counts in a column, the tip as a strip at the card's foot and Up next on the rail. The Journey is a card below the window, collapsed. Training and the class quest come up as cards above the window. Compact mode keeps the tip strip.",
 			tokens = { accent = "#e6ba66" },
 			preset = { ["guideWindow.tabs"] = false, ["guideWindow.progress"] = false, ["nav.journeyOpen"] = false, ["ui.upcoming"] = 3, ["ui.upcomingOpen"] = true } },
 	},
-	defaultVariant = "calm",
+	defaultVariant = "atlas",
 	resolve = function(ctx)
 		if OWN_ACCENT[ctx.variant] then return nil end
 		local c = ctx.classColor and mute(ctx.classColor)
@@ -1316,8 +1299,8 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 		-- No rule under the step bar.
 		guideTitle = function(nav, parts)
 			if parts.rule then parts.rule:Hide() end
-			-- J: no backdrop behind the bar.
-			if isJ() then
+			-- Atlas: no backdrop behind the bar.
+			if isBar() then
 				if parts.band then parts.band:Hide() end
 				if parts.bar then parts.bar:Hide() end
 			end
@@ -1325,7 +1308,7 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 		guideProgress = navFill,
 		guidePlace = function(name, frame, width, height)
 			if name == "after" then
-				-- J2's rail shows the next step already.
+				-- Atlas's rail shows the next step already.
 				if tl() then
 					frame:Hide()
 					return true
@@ -1337,8 +1320,8 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 			end
 			if name == "tip" then tipJ2(frame) end
 			if name == "xp" then xpJ2(frame) end
-			-- J2: the class guide on offer is the heads-up above the window.
-			if name == "banner" and isJ2() and frame.psKind == "classQuest" then
+			-- Atlas: the class guide on offer is the heads-up above the window.
+			if name == "banner" and isTimeline() and frame.psKind == "classQuest" then
 				local GF = Polestar.UI and Polestar.UI.GuideFrame
 				local kind, n
 				if GF and GF.BannerNotice then kind, n = GF.BannerNotice() end
@@ -1347,8 +1330,8 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 					return true
 				end
 			end
-			-- J2: the training reminder is a card above the window, × as Later.
-			if name == "banner" and isJ2() and frame.psKind == "train" then
+			-- Atlas: the training reminder is a card above the window, × as Later.
+			if name == "banner" and isTimeline() and frame.psKind == "train" then
 				local parts = Theme.GuideParts()
 				if parts and parts.window then
 					local stack = stackFrame(parts.window)
@@ -1358,7 +1341,7 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 				end
 			end
 			if name == "classCard" then
-				if not isJ2() then
+				if not isTimeline() then
 					classClose(frame, false)
 				else
 					local CC = Polestar.UI and Polestar.UI.ClassCard
@@ -1373,7 +1356,7 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 					return true
 				end
 			end
-			if name == "journey" and isJ2() then
+			if name == "journey" and isTimeline() then
 				local parts = Theme.GuideParts()
 				if parts and parts.window then
 					frame:SetParent(bottomCard(parts.window))
@@ -1382,8 +1365,8 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 					return true
 				end
 			end
-			if name == "here" then hereLabel(frame, isJ2()) end
-			if name == "here" and isJ2() then
+			if name == "here" then hereLabel(frame, isTimeline()) end
+			if name == "here" and isTimeline() then
 				takeHere(frame)
 				frame:SetHeight(height)
 				slots.here = frame
@@ -1414,10 +1397,10 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 		end,
 		-- Brass and Tooltip: the class card in the variant's accent, not the class colour.
 		card = function(frame, kind, parts)
-			if kind == "headsupCompact" or kind == "hereCompact" then return isJ2() end
-			if kind == "headsupGap" then return isJ2() and GAP or nil end
-			if kind == "headsupAboveOnly" then return isJ2() end
-			if kind == "headsupRewardGlyph" then return isJ2() and Theme.Media("icon-train") or nil end
+			if kind == "headsupCompact" or kind == "hereCompact" then return isTimeline() end
+			if kind == "headsupGap" then return isTimeline() and GAP or nil end
+			if kind == "headsupAboveOnly" then return isTimeline() end
+			if kind == "headsupRewardGlyph" then return isTimeline() and Theme.Media("icon-train") or nil end
 			if not CARD_ACCENT[variant()] then return end
 			local r, g, b = Theme.Accent()
 			for _, region in ipairs(parts.accents or {}) do
@@ -1438,12 +1421,12 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 			rail(parts)
 			return jFootRoom()
 		end,
-		-- J2c: compact mode keeps the tip, as the strip at the card's foot.
-		-- J2: done goals stay in place; Up next has no heading on the rail.
+		-- Compact: compact mode keeps the tip, as the strip at the card's foot.
+		-- Atlas: done goals stay in place; Up next has no heading on the rail.
 		guideShows = function(name, shown)
-			if name == "tip" then return isJ2() end
-			if name == "done" then return isJ2() end
-			if name == "goalScroll" then return not isJ2() end
+			if name == "tip" then return isTimeline() end
+			if name == "done" then return isTimeline() end
+			if name == "goalScroll" then return not isTimeline() end
 			if name == "upnextHead" then return not tl() end
 			-- The class-quest card on the chain's first step only.
 			if name == "classCardLater" then return false end
@@ -1461,8 +1444,8 @@ check("skin atlas", Theme.RegisterSkin("atlas", {
 		guideRender = function(view, parts)
 			fillOptional(view)
 			jPerson(parts)
-			-- The render shows Skip again after the layout: J2 keeps it in the menu.
-			if isJ2() and parts.nav then parts.nav.Skip:Hide() end
+			-- The render shows Skip again after the layout: Atlas keeps it in the menu.
+			if isTimeline() and parts.nav then parts.nav.Skip:Hide() end
 		end,
 	},
 	-- Under another skin: While you're here gets its own panel back, the

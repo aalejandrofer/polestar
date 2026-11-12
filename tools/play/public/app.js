@@ -462,14 +462,13 @@
 
 	function labValues() { return (state && state.layout && state.layout.values) || {}; }
 	function labVariants() { const v = state && state.layout && state.layout.variants; return Array.isArray(v) ? v : []; }
-	function isJ() { const v = labValues(); return v['ui.skin'] === 'atlas' && /^j/.test(String(v['ui.skinVariants.atlas'] || '')); }
+	function isJ() { const v = labValues(); return v['ui.skin'] === 'atlas'; }
 	// The J-family variant to use: the one on now, else `want` when the skin has it, else J.
 	function jVariant(want) {
 		const have = labVariants().map((x) => x.id);
 		if (want && have.includes(want)) return want;
 		if (want === 'j2c' && have.includes('j2')) return 'j2';
-		const now = labValues()['ui.skinVariants.atlas'];
-		return !want && isJ() ? now : 'j';
+		return 'atlas';
 	}
 	function optionSettings(o, variant) {
 		const out = [];
@@ -493,7 +492,6 @@
 	}
 
 	function buildLab() {
-		$('#lab-presets').innerHTML = LAB_PRESETS.map(([k]) => `<button type="button" data-lab-preset="${k}">${k}</button>`).join('');
 		const reach = AXES.filter((a) => a[2].length);
 		$('#lab-axes').innerHTML = reach.map(([k, label, opts, rest]) => `<span class="label">${escapeHtml(label)}</span><div class="chips">${
 			opts.map(([v, n, o]) => `<button type="button" data-lab="${k}" value="${v}"${o.note ? ` title="${escapeHtml(o.note)}"` : ''}>${escapeHtml(n)}</button>`).join('')
@@ -536,18 +534,17 @@
 
 	function syncLab() {
 		const j = isJ();
-		const skins = [['polestar', 'Polestar'], ...labVariants().map((v) => [v.id, `Atlas ${v.name}`])];
+		const skins = [['polestar', 'Polestar'], ['atlas', 'Atlas']];
 		const box = $('#lab-skin');
 		const want = skins.map((s) => s[0]).join(',');
 		if (box.dataset.list !== want) {
 			box.dataset.list = want;
-			box.innerHTML = skins.map(([id, n]) => `<button type="button" data-lab-skin="${id}">${escapeHtml(n)}</button>`).join('')
-				+ (labVariants().length ? '' : '<button type="button" data-lab-skin="j">Atlas J</button>');
+			box.innerHTML = skins.map(([id, n]) => `<button type="button" data-lab-skin="${id}">${escapeHtml(n)}</button>`).join('');
 		}
 		const v = labValues();
 		for (const b of $$('button', box)) {
 			const id = b.dataset.labSkin;
-			b.setAttribute('aria-pressed', String(id === 'polestar' ? (v['ui.skin'] || 'polestar') === 'polestar' : v['ui.skin'] === 'atlas' && v['ui.skinVariants.atlas'] === id));
+			b.setAttribute('aria-pressed', String(id === 'polestar' ? (v['ui.skin'] || 'polestar') === 'polestar' : v['ui.skin'] === 'atlas'));
 		}
 		for (const b of $$('[data-lab]')) {
 			const axis = AXES.find((a) => a[0] === b.dataset.lab);

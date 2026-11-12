@@ -63,7 +63,7 @@ test('a scripted session: hub, a guide, a goal, a scheme change, the world map, 
 
 		// Walk previews exercise the real Atlas cards without advancing the guide.
 		f = await act(play.url, { type: 'layout', settings: [
-			['ui.skinVariants.atlas', 'j2'], ['ui.skin', 'atlas'], ['ui.compact', false],
+			['ui.skinVariants.atlas', 'atlas'], ['ui.skin', 'atlas'], ['ui.compact', false],
 		] });
 		for (const [i, text] of ['Optional', "While you're here", 'Class quest', 'Bags full', 'Journey', 'Tip', 'New abilities'].entries()) {
 			f = await act(play.url, { type: 'walk', card: i + 1 });
